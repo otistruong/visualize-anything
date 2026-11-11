@@ -1,0 +1,6 @@
+{
+  "case": "tcp-handshake",
+  "expect": "fail",
+  "note": "A deliberately poor output, written by hand, to show what failures look like and to prove the checker catches them: no skill use, a hand-written renderer loading a script from a CDN, built before validating, three steps, a typo in an actor id, overlapping actors, no failure case, no sources, and a final message that says nothing about simplifications.",
+  "include": []
+}

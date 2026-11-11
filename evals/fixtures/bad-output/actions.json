@@ -1,0 +1,22 @@
+[
+  {
+    "type": "write",
+    "target": "tcp.html"
+  },
+  {
+    "type": "command",
+    "target": "npm install d3"
+  },
+  {
+    "type": "write",
+    "target": "tcp.json"
+  },
+  {
+    "type": "command",
+    "target": "node .claude/skills/visualize-anything/scripts/build.mjs tcp.json tcp.html --force"
+  },
+  {
+    "type": "command",
+    "target": "node .claude/skills/visualize-anything/scripts/validate.mjs tcp.json"
+  }
+]

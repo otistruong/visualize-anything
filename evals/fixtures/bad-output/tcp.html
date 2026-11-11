@@ -1,0 +1,6 @@
+<!doctype html>
+<html><head><title>TCP handshake</title>
+<script src="https://cdn.example.com/d3.min.js"></script></head>
+<body><div id="chart"></div>
+<script type="application/json" id="spec">{"version": 1, "id": "tcp", "title": "TCP", "summary": "SYN, SYN-ACK, ACK.", "kinds": {"msg": {"label": "Message", "color": "blue"}}, "actors": [{"id": "client", "label": "Client", "pos": [0, 0]}, {"id": "server", "label": "Server", "pos": [1, 0]}], "steps": [{"from": "client", "to": "server", "kind": "msg", "label": "SYN", "title": "SYN", "desc": "The client sends SYN with seq=xxx."}, {"from": "server", "to": "client", "kind": "msg", "label": "SYN-ACK", "title": "SYN-ACK", "desc": "The server replies."}, {"from": "client", "to": "sever", "kind": "msg", "label": "ACK", "title": "ACK", "desc": "ESTABLISHED."}]}</script>
+<script>/* a renderer written from scratch */</script></body></html>

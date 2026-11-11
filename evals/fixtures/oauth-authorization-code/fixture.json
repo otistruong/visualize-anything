@@ -1,0 +1,9 @@
+{
+  "case": "oauth-authorization-code",
+  "expect": "pass",
+  "note": "Reference output written by hand from the bundled example, to test the checker. It is not a recording of an agent.",
+  "include": [
+    "../../../skills/visualize-anything/examples/oauth-authorization-code.json",
+    "../../../examples/oauth-authorization-code.html"
+  ]
+}

@@ -1,0 +1,374 @@
+{
+  "$comment": "Assertions in 'common' apply to every case unless the case sets no_common. Each assertion has a 'check' (see evals/README.md) and an 'expect' sentence that is printed in the result table.",
+  "common": [
+    {
+      "check": "used_skill",
+      "expect": "invokes the skill or reads its SKILL.md"
+    },
+    {
+      "check": "read_file",
+      "pattern": "references/method\\.md",
+      "expect": "reads references/method.md before modelling"
+    },
+    {
+      "check": "read_file",
+      "pattern": "references/spec\\.md",
+      "expect": "reads references/spec.md for the format"
+    },
+    {
+      "check": "spec_file_written",
+      "expect": "writes a spec .json file"
+    },
+    {
+      "check": "ran_command",
+      "pattern": "validate\\.mjs",
+      "expect": "runs scripts/validate.mjs"
+    },
+    {
+      "check": "ran_command",
+      "pattern": "build\\.mjs",
+      "expect": "runs scripts/build.mjs"
+    },
+    {
+      "check": "order",
+      "first": {
+        "type": "command",
+        "pattern": "validate\\.mjs"
+      },
+      "then": {
+        "type": "command",
+        "pattern": "build\\.mjs"
+      },
+      "expect": "validates before building"
+    },
+    {
+      "check": "did_not_run",
+      "pattern": "\\b(npm|pnpm|yarn) (i|install|add)\\b|\\bpip3? install\\b",
+      "expect": "installs no dependencies"
+    },
+    {
+      "check": "did_not_write",
+      "pattern": "player\\.html$",
+      "expect": "does not edit the bundled player"
+    },
+    {
+      "check": "html_file_written",
+      "expect": "produces an .html file with an embedded spec"
+    },
+    {
+      "check": "html_uses_player",
+      "expect": "the HTML is the bundled player, not a custom renderer"
+    },
+    {
+      "check": "html_matches_spec",
+      "expect": "the HTML was built from the final spec"
+    },
+    {
+      "check": "html_self_contained",
+      "expect": "the HTML loads nothing external"
+    },
+    {
+      "check": "spec_valid",
+      "expect": "the spec passes the validator"
+    },
+    {
+      "check": "min_steps",
+      "value": 6,
+      "expect": "spec has at least 6 steps"
+    },
+    {
+      "check": "max_steps",
+      "value": 26,
+      "expect": "spec has at most 26 steps"
+    },
+    {
+      "check": "min_inside_steps",
+      "value": 1,
+      "expect": "at least one decision is its own step"
+    },
+    {
+      "check": "min_fail_steps",
+      "value": 1,
+      "expect": "at least one failure step with a reason"
+    },
+    {
+      "check": "min_steps_with_fields",
+      "value": 3,
+      "expect": "at least 3 steps show fields, a payload or state"
+    },
+    {
+      "check": "marks_a_change",
+      "expect": "something is marked as changed between steps"
+    },
+    {
+      "check": "spec_not_matches",
+      "pattern": "lorem ipsum|\\bTODO\\b|\\bfoo\\b|\\bxxx+\\b|<[a-z_]+>",
+      "expect": "no placeholder values in the spec"
+    },
+    {
+      "check": "min_sources",
+      "value": 1,
+      "expect": "the spec cites at least one source"
+    },
+    {
+      "check": "has_simplifications",
+      "expect": "the spec lists its simplifications"
+    },
+    {
+      "check": "final_matches",
+      "pattern": "\\.html",
+      "expect": "final message names the HTML file"
+    },
+    {
+      "check": "final_matches",
+      "pattern": "simplif|left out|leaves out|not shown|omitted",
+      "expect": "final message lists simplifications"
+    },
+    {
+      "check": "final_matches",
+      "pattern": "sources?\\b[\\s\\S]*https?://|https?://[\\s\\S]*sources?\\b|RFC \\d+",
+      "expect": "final message lists sources"
+    }
+  ],
+  "cases": [
+    {
+      "id": "tcp-handshake",
+      "prompt": "Visualize how the TCP three-way handshake works, step by step. I want to be able to play it and see the sequence numbers change.",
+      "why": "The canonical request: a named protocol, natural phrasing, a detail the user cares about.",
+      "assertions": [
+        {
+          "check": "min_actors",
+          "value": 2,
+          "expect": "has a client and a server"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "SYN",
+          "expect": "mentions SYN"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "SYN[,\\- /+]*ACK",
+          "expect": "mentions SYN-ACK"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "\\bseq",
+          "expect": "shows sequence numbers"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "ESTABLISHED",
+          "expect": "reaches the ESTABLISHED state"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "rfc-editor\\.org/rfc/rfc9293|rfc ?9293|rfc ?793",
+          "expect": "cites the TCP specification"
+        }
+      ]
+    },
+    {
+      "id": "oauth-authorization-code",
+      "prompt": "Make an interactive explainer of the OAuth 2.0 authorization code flow with PKCE for a server-side web app. Show what is sent in each request.",
+      "why": "Many parties, HTTP payloads, and a security property that only a failure case makes visible.",
+      "assertions": [
+        {
+          "check": "min_actors",
+          "value": 3,
+          "expect": "has at least browser, client and authorization server"
+        },
+        {
+          "check": "min_steps",
+          "value": 10,
+          "expect": "spec has at least 10 steps"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "code_challenge",
+          "expect": "shows the PKCE code_challenge"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "code_verifier",
+          "expect": "shows the PKCE code_verifier"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "\\bstate\\b",
+          "expect": "shows the state parameter"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "redirect_uri",
+          "expect": "shows redirect_uri"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "access_token",
+          "expect": "shows the access token response"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "rfc ?6749",
+          "expect": "cites RFC 6749"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "rfc ?7636",
+          "expect": "cites RFC 7636 (PKCE)"
+        },
+        {
+          "check": "spec_not_matches",
+          "pattern": "response_type\\W+token",
+          "expect": "does not model the implicit grant"
+        }
+      ]
+    },
+    {
+      "id": "hash-map-collision",
+      "prompt": "Explain visually how a hash map handles two keys that land in the same bucket.",
+      "why": "Not a network subject. Checks that the agent maps a data structure onto actors and steps.",
+      "assertions": [
+        {
+          "check": "min_actors",
+          "value": 3,
+          "expect": "buckets or slots are actors"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "collision",
+          "expect": "names the collision"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "chain|open addressing|prob(e|ing)",
+          "expect": "names the resolution strategy"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "mod|%|remainder",
+          "expect": "shows how the bucket index is computed"
+        }
+      ]
+    },
+    {
+      "id": "dns-resolution",
+      "prompt": "Build an interactive explainer of how a recursive DNS resolver finds the address for www.example.com when nothing is cached.",
+      "why": "No bundled example covers this subject, so the agent has to do the modelling itself rather than adapt an example.",
+      "assertions": [
+        {
+          "check": "min_actors",
+          "value": 4,
+          "expect": "has at least client, resolver and two levels of name server"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "root",
+          "expect": "includes a root server"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "TLD|top-level",
+          "expect": "includes a TLD server"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "authoritative",
+          "expect": "includes an authoritative server"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "referral|\\bNS\\b",
+          "expect": "shows referrals (NS records)"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "TTL|cache",
+          "expect": "shows caching or TTL"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "rfc ?(1034|1035|9499|8499)",
+          "expect": "cites a DNS RFC"
+        }
+      ]
+    },
+    {
+      "id": "broad-subject",
+      "prompt": "Visualize Kubernetes.",
+      "why": "Too broad to model whole. The agent should pick one concrete path, say which, and stay within the size limits.",
+      "assertions": [
+        {
+          "check": "final_matches",
+          "pattern": "scope|one path|chose|picked|focus|covers|narrow",
+          "expect": "final message says which path it chose"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "kubernetes\\.io",
+          "expect": "cites the Kubernetes documentation"
+        }
+      ]
+    },
+    {
+      "id": "edit-existing",
+      "prompt": "tcp-handshake.json and tcp-handshake.html are an explainer made earlier with the visualize-anything skill. Add a final step in which the server acknowledges the client's 517 bytes of data, then rebuild the HTML.",
+      "why": "Editing: the spec is the source, the HTML is output. The agent must change the spec, validate and rebuild, not patch the HTML.",
+      "no_common": true,
+      "setup": {
+        "copy": {
+          "skills/visualize-anything/examples/tcp-handshake.json": "tcp-handshake.json",
+          "examples/tcp-handshake.html": "tcp-handshake.html"
+        }
+      },
+      "assertions": [
+        {
+          "check": "wrote_file",
+          "pattern": "tcp-handshake\\.json",
+          "expect": "edits the spec file"
+        },
+        {
+          "check": "did_not_write",
+          "pattern": "\\.html$",
+          "expect": "does not edit the HTML by hand"
+        },
+        {
+          "check": "ran_command",
+          "pattern": "validate\\.mjs",
+          "expect": "runs scripts/validate.mjs"
+        },
+        {
+          "check": "order",
+          "first": {
+            "type": "command",
+            "pattern": "validate\\.mjs"
+          },
+          "then": {
+            "type": "command",
+            "pattern": "build\\.mjs"
+          },
+          "expect": "validates before building"
+        },
+        {
+          "check": "spec_valid",
+          "expect": "the spec passes the validator"
+        },
+        {
+          "check": "min_steps",
+          "value": 12,
+          "expect": "the spec has 12 or more steps"
+        },
+        {
+          "check": "spec_matches",
+          "pattern": "1518",
+          "expect": "the new step acknowledges 1518"
+        },
+        {
+          "check": "html_matches_spec",
+          "expect": "the HTML was rebuilt from the edited spec"
+        }
+      ]
+    }
+  ]
+}

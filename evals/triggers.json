@@ -1,0 +1,87 @@
+{
+  "$comment": "Prompts for checking the skill's description. 'should_trigger' prompts ought to make an agent pick the skill up; 'should_not_trigger' prompts ought to be handled without it.",
+  "should_trigger": [
+    {
+      "prompt": "Visualize how the TCP three-way handshake works.",
+      "reason": "Direct 'visualize how X works' phrasing with a protocol."
+    },
+    {
+      "prompt": "Can you animate what happens when I type a URL into the browser and press enter?",
+      "reason": "'Animate' plus a multi-party sequence of events."
+    },
+    {
+      "prompt": "I need a step-by-step diagram of the OAuth authorization code flow that I can click through.",
+      "reason": "'Step-by-step diagram' that is playable, not static."
+    },
+    {
+      "prompt": "Explain Raft leader election visually.",
+      "reason": "'Explain visually' with a distributed algorithm: actors, messages and state."
+    },
+    {
+      "prompt": "Build an interactive explainer for how DNS resolution works, from stub resolver to authoritative server.",
+      "reason": "'Interactive explainer' named outright."
+    },
+    {
+      "prompt": "Show me how a B-tree insert splits a node, one step at a time.",
+      "reason": "A data structure changing over ordered steps; no network involved."
+    },
+    {
+      "prompt": "Make a walkthrough of how our checkout request flows through the API gateway, auth service, cart service and payment provider, including what happens when the payment is declined.",
+      "reason": "An architecture with a request path and a failure case."
+    },
+    {
+      "prompt": "I'm teaching a class on git. Can you make something that shows what a rebase does to the commits, step by step?",
+      "reason": "A teaching aid for a process; the word 'visualize' is absent but the need is the same."
+    },
+    {
+      "prompt": "Create a playable sequence diagram of the TLS 1.3 handshake.",
+      "reason": "'Playable sequence diagram'."
+    },
+    {
+      "prompt": "How does a Kubernetes pod get scheduled? I'd like to see it, not read it.",
+      "reason": "Indirect request for a visual, sequential explanation."
+    }
+  ],
+  "should_not_trigger": [
+    {
+      "prompt": "Plot monthly revenue for 2025 as a bar chart from sales.csv.",
+      "reason": "Numeric data: a chart, not a sequence of steps."
+    },
+    {
+      "prompt": "Build a dashboard showing p50 and p99 latency per service.",
+      "reason": "A dashboard of metrics."
+    },
+    {
+      "prompt": "Draw an architecture diagram of our microservices as boxes and arrows.",
+      "reason": "A static diagram with no order of events."
+    },
+    {
+      "prompt": "Explain how the TCP handshake works.",
+      "reason": "Asks for an explanation in text; nothing says visual, animated or interactive."
+    },
+    {
+      "prompt": "Make an org chart for the engineering department.",
+      "reason": "A static hierarchy."
+    },
+    {
+      "prompt": "Create a slide deck about OAuth for the security review.",
+      "reason": "A presentation, not an explainer."
+    },
+    {
+      "prompt": "Write a Mermaid sequence diagram for the login flow and put it in the README.",
+      "reason": "A specific static format was asked for."
+    },
+    {
+      "prompt": "Fix the off-by-one error in src/pagination.ts.",
+      "reason": "Ordinary coding work."
+    },
+    {
+      "prompt": "Make a mind map of topics to study for the networking exam.",
+      "reason": "A static map of topics with no sequence."
+    },
+    {
+      "prompt": "Add a loading spinner animation to the submit button.",
+      "reason": "'Animation' in the UI sense; nothing is being explained."
+    }
+  ]
+}

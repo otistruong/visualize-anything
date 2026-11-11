@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "tcp",
+  "title": "TCP handshake",
+  "summary": "SYN, SYN-ACK, ACK.",
+  "kinds": {
+    "msg": {
+      "label": "Message",
+      "color": "blue"
+    }
+  },
+  "actors": [
+    {
+      "id": "client",
+      "label": "Client",
+      "pos": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "server",
+      "label": "Server",
+      "pos": [
+        1,
+        0
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "from": "client",
+      "to": "server",
+      "kind": "msg",
+      "label": "SYN",
+      "title": "SYN",
+      "desc": "The client sends SYN with seq=xxx."
+    },
+    {
+      "from": "server",
+      "to": "client",
+      "kind": "msg",
+      "label": "SYN-ACK",
+      "title": "SYN-ACK",
+      "desc": "The server replies."
+    },
+    {
+      "from": "client",
+      "to": "sever",
+      "kind": "msg",
+      "label": "ACK",
+      "title": "ACK",
+      "desc": "ESTABLISHED."
+    }
+  ]
+}

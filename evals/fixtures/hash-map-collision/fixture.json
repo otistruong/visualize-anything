@@ -1,0 +1,9 @@
+{
+  "case": "hash-map-collision",
+  "expect": "pass",
+  "note": "Reference output written by hand from the bundled example, to test the checker. It is not a recording of an agent.",
+  "include": [
+    "../../../skills/visualize-anything/examples/hash-map-collision.json",
+    "../../../examples/hash-map-collision.html"
+  ]
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "type": "skill",
+    "target": "visualize-anything"
+  },
+  {
+    "type": "read",
+    "target": ".claude/skills/visualize-anything/references/method.md"
+  },
+  {
+    "type": "search",
+    "target": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html"
+  },
+  {
+    "type": "read",
+    "target": ".claude/skills/visualize-anything/references/spec.md"
+  },
+  {
+    "type": "read",
+    "target": ".claude/skills/visualize-anything/examples/tcp-handshake.json"
+  },
+  {
+    "type": "write",
+    "target": "hash-map-collision.json"
+  },
+  {
+    "type": "command",
+    "target": "node .claude/skills/visualize-anything/scripts/validate.mjs hash-map-collision.json"
+  },
+  {
+    "type": "write",
+    "target": "hash-map-collision.json"
+  },
+  {
+    "type": "command",
+    "target": "node .claude/skills/visualize-anything/scripts/validate.mjs hash-map-collision.json"
+  },
+  {
+    "type": "command",
+    "target": "node .claude/skills/visualize-anything/scripts/build.mjs hash-map-collision.json hash-map-collision.html"
+  }
+]
