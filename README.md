@@ -16,6 +16,8 @@ Works with Claude (Claude Code and the Claude apps), GitHub Copilot and OpenAI C
 
 The agent does not write a renderer, an animation loop or any CSS. Those ship with the skill as one dependency-free file, [`player.html`](skills/visualize-anything/assets/player.html). The agent's work is the part that matters: understanding the subject, getting the facts right, and cutting it into steps that teach. It writes a JSON spec, runs a validator, and runs a build script that embeds the spec into the player.
 
+> **See the method at full size: [network-graph-sigma.vercel.app](https://network-graph-sigma.vercel.app)** (Network Graph, the live reference project).
+
 This method comes from [Network Graph](https://github.com/otistruong/network-graph), where fourteen networking lessons (NAT, ARP, DHCP, DNS, TCP, load balancers and more) are written as data and one player renders them all. Network Graph is the reference project and the worked example of the method at full size. This skill is the method on its own, with a smaller player that needs no build step.
 
 ## Examples
