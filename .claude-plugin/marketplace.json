@@ -1,0 +1,35 @@
+{
+  "name": "visualize-anything",
+  "owner": {
+    "name": "Otis",
+    "url": "https://github.com/otistruong/visualize-anything"
+  },
+  "metadata": {
+    "description": "Agent skill that turns any process, protocol, architecture or algorithm into an interactive step-by-step visual explainer in one HTML file.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "visualize-anything",
+      "source": "./",
+      "description": "Agent skill that turns any process, protocol, architecture or algorithm into an interactive step-by-step visual explainer in one HTML file.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Otis",
+        "url": "https://github.com/otistruong/visualize-anything"
+      },
+      "homepage": "https://github.com/otistruong/visualize-anything",
+      "license": "MIT",
+      "keywords": [
+        "agent-skills",
+        "skill",
+        "visualization",
+        "explainer",
+        "diagram",
+        "animation",
+        "education"
+      ],
+      "category": "learning"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "visualize-anything",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent skill that turns any process, protocol, architecture or algorithm into an interactive step-by-step visual explainer in one HTML file.",
+  "type": "module",
+  "license": "MIT",
+  "author": { "name": "Otis", "url": "https://github.com/otistruong/visualize-anything" },
+  "homepage": "https://github.com/otistruong/visualize-anything",
+  "repository": { "type": "git", "url": "git+https://github.com/otistruong/visualize-anything.git" },
+  "bugs": { "url": "https://github.com/otistruong/visualize-anything/issues" },
+  "keywords": ["agent-skills", "skill", "visualization", "explainer", "diagram", "animation", "education"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "validate": "node skills/visualize-anything/scripts/validate.mjs skills/visualize-anything/examples/*.json --strict",
+    "build": "node scripts/build-examples.mjs",
+    "sync": "node scripts/sync.mjs",
+    "check": "node scripts/sync.mjs --check && node scripts/build-examples.mjs --check && node scripts/check-docs.mjs",
+    "eval": "node evals/run.mjs",
+    "test": "npm run validate && npm run check && npm run eval"
+  }
+}
