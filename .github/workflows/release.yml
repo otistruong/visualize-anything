@@ -1,0 +1,30 @@
+name: Release
+
+# Pushing a tag such as v0.1.0 publishes a GitHub release with that version's
+# section of CHANGELOG.md as its notes.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Take this version's notes from the changelog
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '/^## \[/{on = index($0, "[" v "]") > 0; next} on' CHANGELOG.md > notes.md
+          test -s notes.md || echo "Release $GITHUB_REF_NAME." > notes.md
+
+      - name: Pack the skill folder for upload to the Claude apps
+        run: cd skills && zip -r ../visualize-anything-skill.zip visualize-anything
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" visualize-anything-skill.zip --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
