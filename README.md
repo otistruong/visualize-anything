@@ -1,5 +1,7 @@
 # visualize-anything
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/P6G12AH04U)
+
 An agent skill that turns any process, protocol, architecture or algorithm into an interactive, step-by-step visual explainer.
 
 You ask your coding agent something like "visualize how the TCP handshake works". The agent researches the subject, writes it down as data (who takes part, and what happens one step at a time), and builds a single HTML file you can open in any browser: a scene, a token that moves between the parts, a sequence timeline, and an inspector that shows exactly what is in play at each step and what changed.
@@ -225,6 +227,12 @@ The skill and the explainers it produces are for education. Explainers can conta
 ## Contributing and contact
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). For questions, bugs and corrections, open an issue at <https://github.com/otistruong/visualize-anything/issues>.
+
+## Support
+
+If this skill is useful to you, you can support the work on Ko-fi.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/P6G12AH04U)
 
 ## Licence
 
