@@ -1,0 +1,24 @@
+name: An example or the method is factually wrong
+description: A step, value or statement in an example explainer or in the documentation is incorrect.
+labels: [accuracy]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: File and step, for example "tcp-handshake.json, step 8".
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What it says now
+    validations:
+      required: true
+  - type: textarea
+    id: right
+    attributes:
+      label: What it should say, and the source
+      description: Link the primary source (standard, official documentation, source code) and quote the passage.
+    validations:
+      required: true

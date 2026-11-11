@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Validate every example spec (warnings are failures)
+        run: node skills/visualize-anything/scripts/validate.mjs skills/visualize-anything/examples/*.json --strict
+
+      - name: Rebuild the examples and fail if the committed HTML differs
+        run: |
+          node scripts/build-examples.mjs
+          git diff --exit-code -- examples
+
+      - name: Check the adapters are in sync with the skill
+        run: |
+          node scripts/sync.mjs
+          git diff --exit-code -- .claude-plugin plugin.json adapters
+
+      - name: Check the documentation examples and SKILL.md length
+        run: node scripts/check-docs.mjs
+
+      - name: Offline evals
+        run: node evals/run.mjs
+
+      - name: The player and built examples make no network requests
+        run: |
+          if grep -nE '<script[^>]+src=|<link[^>]+href=|@import|url\(\s*.?https?:' skills/visualize-anything/assets/player.html examples/*.html; then
+            echo "Found an external resource."; exit 1
+          fi

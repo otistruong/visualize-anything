@@ -1,0 +1,25 @@
+name: The player shows something wrong
+description: Overlapping labels, a broken layout, a control that does not work.
+labels: [player]
+body:
+  - type: input
+    id: browser
+    attributes:
+      label: Browser, version and screen width
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: The spec (or which example)
+      description: Paste the spec JSON, or name the example and the step. Remove anything private first.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: seen
+    attributes:
+      label: What you see, and what you expected
+      description: A screenshot helps.
+    validations:
+      required: true

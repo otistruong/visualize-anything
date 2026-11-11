@@ -1,0 +1,30 @@
+name: An agent used the skill badly
+description: The skill did not activate when it should have, activated when it should not, or the agent skipped part of the workflow.
+labels: [skill]
+body:
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and version
+      description: For example "Claude Code 2.1", "Copilot CLI 1.0", "Codex CLI".
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: The prompt you gave
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What the agent did
+      description: If you can, attach the output of "node evals/run.mjs --case <id> --dir <output-dir>". Remove anything private first.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
