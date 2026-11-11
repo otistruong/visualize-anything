@@ -1,6 +1,6 @@
 # Method: modelling a subject so that it teaches
 
-The player is fixed. The quality of an explainer is decided by the spec, and the spec is decided by how well you understood the subject and how you cut it into steps. This file is the method. It was worked out on [Network Graph](https://github.com/otistruong/network-graph), where fourteen networking lessons are written as data and one player renders them all.
+The player is fixed. The quality of an explainer is decided by the spec, and the spec is decided by how well you understood the subject and how you cut it into steps. This file is the method. It was worked out on [Network Graph](https://network-graph-sigma.vercel.app), where fourteen networking lessons are written as data and one player renders them all.
 
 ## Contents
 

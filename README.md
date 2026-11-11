@@ -18,7 +18,7 @@ The agent does not write a renderer, an animation loop or any CSS. Those ship wi
 
 > **See the method at full size: [network-graph-sigma.vercel.app](https://network-graph-sigma.vercel.app)** (Network Graph, the live reference project). Start with the [GCP Lab Explorer](https://network-graph-sigma.vercel.app/gcp): three load-balancer labs played one packet at a time.
 
-This method comes from [Network Graph](https://github.com/otistruong/network-graph), where fourteen networking lessons (NAT, ARP, DHCP, DNS, TCP, load balancers and more) are written as data and one player renders them all. Network Graph is the reference project and the worked example of the method at full size. This skill is the method on its own, with a smaller player that needs no build step.
+This method comes from [Network Graph](https://network-graph-sigma.vercel.app), where fourteen networking lessons (NAT, ARP, DHCP, DNS, TCP, load balancers and more) are written as data and one player renders them all. Network Graph is the reference project and the worked example of the method at full size. This skill is the method on its own, with a smaller player that needs no build step.
 
 ## Examples
 
