@@ -1,0 +1,542 @@
+{
+  "version": 1,
+  "id": "hash-map-collision",
+  "title": "How a hash map resolves a collision (separate chaining)",
+  "summary": "Three keys go into a hash map with four buckets. Two of them land in the same bucket. Watch how the map stores both, finds the right one again, and what a lookup for a missing key does.",
+  "kinds": {
+    "call": {
+      "label": "Call",
+      "color": "blue"
+    },
+    "calc": {
+      "label": "Hash computation",
+      "color": "amber"
+    },
+    "write": {
+      "label": "Write to a bucket",
+      "color": "green"
+    },
+    "read": {
+      "label": "Read from a bucket",
+      "color": "purple"
+    },
+    "cmp": {
+      "label": "Key comparison",
+      "color": "gray"
+    },
+    "ret": {
+      "label": "Return value",
+      "color": "cyan"
+    }
+  },
+  "actors": [
+    {
+      "id": "prog",
+      "label": "Program",
+      "sub": "calls put and get",
+      "shape": "screen",
+      "pos": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "map",
+      "label": "Hash map code",
+      "sub": "index = hash(key) mod 4",
+      "shape": "box",
+      "pos": [
+        4.5,
+        0
+      ]
+    },
+    {
+      "id": "b0",
+      "label": "Bucket 0",
+      "shape": "tile",
+      "pos": [
+        9.5,
+        -4.5
+      ]
+    },
+    {
+      "id": "b1",
+      "label": "Bucket 1",
+      "shape": "tile",
+      "pos": [
+        9.5,
+        -1.5
+      ]
+    },
+    {
+      "id": "b2",
+      "label": "Bucket 2",
+      "shape": "tile",
+      "pos": [
+        9.5,
+        1.5
+      ]
+    },
+    {
+      "id": "b3",
+      "label": "Bucket 3",
+      "shape": "tile",
+      "pos": [
+        9.5,
+        4.5
+      ]
+    }
+  ],
+  "zones": [
+    {
+      "label": "The table: an array of 4 buckets",
+      "x": 7.6,
+      "y": -5.7,
+      "w": 3.9,
+      "h": 12.4,
+      "color": "cyan"
+    }
+  ],
+  "links": [
+    [
+      "prog",
+      "map"
+    ],
+    [
+      "map",
+      "b0"
+    ],
+    [
+      "map",
+      "b1"
+    ],
+    [
+      "map",
+      "b2"
+    ],
+    [
+      "map",
+      "b3"
+    ]
+  ],
+  "steps": [
+    {
+      "from": "prog",
+      "to": "map",
+      "kind": "call",
+      "label": "put(\"cat\", 7)",
+      "title": "The program stores \"cat\" with the value 7",
+      "desc": "A hash map stores key and value pairs in an array of buckets. To decide which bucket, it turns the key into a number.",
+      "status": {
+        "b0": "empty",
+        "b1": "empty",
+        "b2": "empty",
+        "b3": "empty"
+      }
+    },
+    {
+      "from": "map",
+      "kind": "calc",
+      "label": "hash(\"cat\") = 312, bucket 0",
+      "title": "The map hashes the key to pick a bucket",
+      "desc": "This example uses a toy hash: add up the character codes of the key. The bucket index is the remainder after dividing by the number of buckets. 312 mod 4 = 0.",
+      "state": [
+        {
+          "title": "hash(\"cat\")",
+          "head": [
+            "Step",
+            "Result"
+          ],
+          "rows": [
+            [
+              "Character codes",
+              "c = 99, a = 97, t = 116"
+            ],
+            [
+              "Add them up",
+              "99 + 97 + 116 = 312"
+            ],
+            [
+              "Remainder after dividing by 4",
+              "312 mod 4 = 0"
+            ]
+          ],
+          "mark": [
+            2
+          ]
+        }
+      ],
+      "notes": [
+        "The same key always gives the same bucket. That is what makes lookups fast: the map goes straight to one bucket instead of searching all of them."
+      ]
+    },
+    {
+      "from": "map",
+      "to": "b0",
+      "kind": "write",
+      "label": "insert cat = 7",
+      "title": "Bucket 0 is empty, so the entry goes in",
+      "desc": "The map creates an entry holding both the key and the value and puts it in bucket 0. The key is stored too, not just the value. A later step shows why.",
+      "status": {
+        "b0": "cat=7"
+      },
+      "state": [
+        {
+          "title": "Table: 4 buckets",
+          "head": [
+            "Bucket",
+            "Chain"
+          ],
+          "rows": [
+            [
+              "0",
+              "cat=7"
+            ],
+            [
+              "1",
+              "(empty)"
+            ],
+            [
+              "2",
+              "(empty)"
+            ],
+            [
+              "3",
+              "(empty)"
+            ]
+          ],
+          "mark": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "from": "prog",
+      "to": "map",
+      "kind": "call",
+      "label": "put(\"dog\", 3)",
+      "title": "The program stores \"dog\" with the value 3",
+      "desc": "A second key. The map repeats the same two moves: hash, then go to that bucket."
+    },
+    {
+      "from": "map",
+      "kind": "calc",
+      "label": "hash(\"dog\") = 314, bucket 2",
+      "title": "A different key usually gives a different bucket",
+      "desc": "314 mod 4 = 2, so \"dog\" belongs in bucket 2.",
+      "state": [
+        {
+          "title": "hash(\"dog\")",
+          "head": [
+            "Step",
+            "Result"
+          ],
+          "rows": [
+            [
+              "Character codes",
+              "d = 100, o = 111, g = 103"
+            ],
+            [
+              "Add them up",
+              "100 + 111 + 103 = 314"
+            ],
+            [
+              "Remainder after dividing by 4",
+              "314 mod 4 = 2"
+            ]
+          ],
+          "mark": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "from": "map",
+      "to": "b2",
+      "kind": "write",
+      "label": "insert dog = 3",
+      "title": "Bucket 2 is empty, so the entry goes in",
+      "desc": "No other entry is in the way. So far every key has had a bucket to itself.",
+      "status": {
+        "b2": "dog=3"
+      },
+      "state": [
+        {
+          "title": "Table: 4 buckets",
+          "head": [
+            "Bucket",
+            "Chain"
+          ],
+          "rows": [
+            [
+              "0",
+              "cat=7"
+            ],
+            [
+              "1",
+              "(empty)"
+            ],
+            [
+              "2",
+              "dog=3"
+            ],
+            [
+              "3",
+              "(empty)"
+            ]
+          ],
+          "mark": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "from": "prog",
+      "to": "map",
+      "kind": "call",
+      "label": "put(\"act\", 9)",
+      "title": "The program stores \"act\" with the value 9",
+      "desc": "A third key. It is made of the same letters as \"cat\", in a different order."
+    },
+    {
+      "from": "map",
+      "kind": "calc",
+      "label": "hash(\"act\") = 312, bucket 0",
+      "title": "Two different keys hash to the same bucket",
+      "desc": "Adding the same three character codes in another order gives the same sum, 312, and the same bucket, 0. This is a collision. With more possible keys than buckets, collisions cannot be avoided, only made rare.",
+      "state": [
+        {
+          "title": "hash(\"act\")",
+          "head": [
+            "Step",
+            "Result"
+          ],
+          "rows": [
+            [
+              "Character codes",
+              "a = 97, c = 99, t = 116"
+            ],
+            [
+              "Add them up",
+              "97 + 99 + 116 = 312"
+            ],
+            [
+              "Remainder after dividing by 4",
+              "312 mod 4 = 0"
+            ]
+          ],
+          "mark": [
+            2
+          ]
+        }
+      ],
+      "notes": [
+        "A real hash function mixes the position of each character into the result, so \"cat\" and \"act\" would differ. Collisions still happen, because many hash values share each bucket."
+      ]
+    },
+    {
+      "from": "map",
+      "to": "b0",
+      "kind": "write",
+      "label": "act = 9 goes to bucket 0",
+      "title": "The new entry arrives at a bucket that is taken",
+      "desc": "Bucket 0 already holds the entry for \"cat\". The map must not overwrite it: \"cat\" and \"act\" are different keys that happen to share a bucket."
+    },
+    {
+      "from": "b0",
+      "kind": "cmp",
+      "label": "\"cat\" equals \"act\"? no",
+      "title": "Compare keys, then chain the new entry",
+      "desc": "The map compares the new key with each key already in the bucket. \"cat\" is not equal to \"act\" and there are no more entries, so this is a new key. With separate chaining, the bucket holds a linked list and the new entry is added to it.",
+      "status": {
+        "b0": "cat=7 -> act=9"
+      },
+      "state": [
+        {
+          "title": "Table: 4 buckets",
+          "head": [
+            "Bucket",
+            "Chain"
+          ],
+          "rows": [
+            [
+              "0",
+              "cat=7 -> act=9"
+            ],
+            [
+              "1",
+              "(empty)"
+            ],
+            [
+              "2",
+              "dog=3"
+            ],
+            [
+              "3",
+              "(empty)"
+            ]
+          ],
+          "mark": [
+            0
+          ]
+        }
+      ],
+      "notes": [
+        "If the keys had been equal, the map would have replaced the old value instead of adding an entry.",
+        "This is why the key is stored with the value: the bucket index alone cannot tell two colliding keys apart."
+      ]
+    },
+    {
+      "from": "prog",
+      "to": "map",
+      "kind": "call",
+      "label": "get(\"act\")",
+      "title": "The program asks for \"act\"",
+      "desc": "A lookup starts exactly like an insert. The map hashes the key again: 312 mod 4 = 0."
+    },
+    {
+      "from": "map",
+      "to": "b0",
+      "kind": "read",
+      "label": "look for \"act\"",
+      "title": "The map goes to bucket 0",
+      "desc": "The hash tells the map which bucket to search. It does not say which entry in that bucket is the right one."
+    },
+    {
+      "from": "b0",
+      "kind": "cmp",
+      "label": "\"cat\"? no. \"act\"? yes",
+      "title": "Walk the chain until a key matches",
+      "desc": "The map compares the wanted key with each entry in turn. The first entry is \"cat\": not equal, move on. The second is \"act\": equal, so this is the entry.",
+      "state": [
+        {
+          "title": "Chain in bucket 0",
+          "head": [
+            "Entry",
+            "Key",
+            "Equal to \"act\"?"
+          ],
+          "rows": [
+            [
+              "1",
+              "cat",
+              "no"
+            ],
+            [
+              "2",
+              "act",
+              "yes, stop"
+            ]
+          ],
+          "mark": [
+            1
+          ]
+        }
+      ],
+      "notes": [
+        "A lookup costs one hash plus one comparison per entry in the chain. Short chains keep that close to constant time."
+      ]
+    },
+    {
+      "from": "b0",
+      "to": "map",
+      "kind": "ret",
+      "label": "found: 9",
+      "title": "The value 9 is returned",
+      "desc": "The collision cost one extra comparison, and the right value still came back."
+    },
+    {
+      "from": "prog",
+      "to": "map",
+      "kind": "call",
+      "label": "get(\"tac\")",
+      "title": "The program asks for a key that was never stored",
+      "desc": "\"tac\" is another arrangement of the same letters. Its hash is 312 again, so the map goes to bucket 0 again."
+    },
+    {
+      "from": "map",
+      "to": "b0",
+      "kind": "read",
+      "label": "look for \"tac\"",
+      "title": "The map goes to bucket 0",
+      "desc": "The bucket is not empty, but that does not mean the key is present."
+    },
+    {
+      "from": "b0",
+      "kind": "cmp",
+      "label": "\"cat\"? no. \"act\"? no. end",
+      "title": "No key in the chain matches",
+      "desc": "The map compares \"tac\" with every entry in the chain and reaches the end without a match.",
+      "fail": "The key \"tac\" was never inserted. Landing in the same bucket as other keys is not a match: only an equal key is.",
+      "state": [
+        {
+          "title": "Chain in bucket 0",
+          "head": [
+            "Entry",
+            "Key",
+            "Equal to \"tac\"?"
+          ],
+          "rows": [
+            [
+              "1",
+              "cat",
+              "no"
+            ],
+            [
+              "2",
+              "act",
+              "no"
+            ],
+            [
+              "end",
+              "",
+              "not found"
+            ]
+          ],
+          "mark": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "from": "b0",
+      "to": "map",
+      "kind": "ret",
+      "label": "not found",
+      "title": "The lookup reports that the key is absent",
+      "desc": "What \"not found\" looks like depends on the language: Java's HashMap.get returns null, Python raises KeyError, Go returns the zero value and false."
+    }
+  ],
+  "simplifications": [
+    "The hash function is a toy (sum of character codes) chosen so the arithmetic fits on screen. It is a poor hash: any two anagrams collide.",
+    "The table has 4 buckets and never grows. A real hash map resizes and redistributes its entries as it fills up. Java's HashMap does so once the number of entries exceeds 0.75 times the number of buckets.",
+    "Each chain is a plain linked list. Java's HashMap turns a long chain into a balanced tree to keep worst-case lookups fast.",
+    "Separate chaining is one of two common strategies. The other, open addressing, keeps every entry in the array itself and probes for another slot on a collision; Python's dict works that way.",
+    "Removing entries, replacing the value of an existing key and iteration order are not shown."
+  ],
+  "sources": [
+    {
+      "title": "Java SE 21 API: java.util.HashMap",
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html",
+      "note": "Buckets, capacity, the default load factor of 0.75 and rehashing."
+    },
+    {
+      "title": "OpenJDK source: HashMap.java, implementation notes",
+      "url": "https://github.com/openjdk/jdk/blob/master/src/java.base/share/classes/java/util/HashMap.java",
+      "note": "Bins as linked lists that are converted to trees when they grow long."
+    },
+    {
+      "title": "CPython source: Objects/dictobject.c",
+      "url": "https://github.com/python/cpython/blob/main/Objects/dictobject.c",
+      "note": "Open addressing, the alternative to chaining."
+    },
+    {
+      "title": "Cormen, Leiserson, Rivest, Stein: Introduction to Algorithms, chapter 11 \"Hash Tables\"",
+      "note": "Textbook treatment of collision resolution by chaining and by open addressing."
+    }
+  ]
+}

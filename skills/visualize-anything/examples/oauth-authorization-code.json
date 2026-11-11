@@ -1,0 +1,689 @@
+{
+  "version": 1,
+  "id": "oauth-authorization-code",
+  "title": "OAuth 2.0 authorization code flow with PKCE",
+  "summary": "A web app gets permission to read a user's calendar without ever seeing the user's password. Follow the browser redirects, the server-to-server token request, and what happens when a stolen code is replayed.",
+  "kinds": {
+    "front": {
+      "label": "Through the browser",
+      "color": "blue"
+    },
+    "back": {
+      "label": "Server to server",
+      "color": "green"
+    },
+    "api": {
+      "label": "API call",
+      "color": "purple"
+    },
+    "check": {
+      "label": "Check or decision",
+      "color": "gray"
+    }
+  },
+  "actors": [
+    {
+      "id": "browser",
+      "label": "Browser",
+      "sub": "the user",
+      "shape": "screen",
+      "pos": [
+        0,
+        3.8
+      ]
+    },
+    {
+      "id": "client",
+      "label": "Client app",
+      "sub": "client.example.com",
+      "shape": "box",
+      "pos": [
+        5.5,
+        3.8
+      ]
+    },
+    {
+      "id": "authz",
+      "label": "Authorization server",
+      "sub": "auth.example.com",
+      "shape": "tower",
+      "pos": [
+        5,
+        -1.5
+      ]
+    },
+    {
+      "id": "api",
+      "label": "Resource server",
+      "sub": "api.example.com",
+      "shape": "cylinder",
+      "pos": [
+        10,
+        -1.5
+      ]
+    },
+    {
+      "id": "attacker",
+      "label": "Attacker",
+      "sub": "has a copied code",
+      "shape": "person",
+      "pos": [
+        11,
+        3.8
+      ]
+    }
+  ],
+  "zones": [
+    {
+      "label": "Calendar provider",
+      "x": 3.2,
+      "y": -3,
+      "w": 8.6,
+      "h": 3.9,
+      "color": "amber"
+    }
+  ],
+  "links": [
+    [
+      "browser",
+      "client"
+    ],
+    [
+      "browser",
+      "authz"
+    ],
+    [
+      "client",
+      "authz"
+    ],
+    [
+      "client",
+      "api"
+    ]
+  ],
+  "steps": [
+    {
+      "from": "browser",
+      "to": "client",
+      "kind": "front",
+      "label": "GET /connect",
+      "title": "The user clicks \"Connect calendar\"",
+      "desc": "The user wants the client app to read their calendar. The app has no permission yet, so it starts an OAuth authorization request.",
+      "status": {
+        "browser": "on client.example.com"
+      }
+    },
+    {
+      "from": "client",
+      "kind": "check",
+      "label": "make state + PKCE pair",
+      "title": "The client prepares two secrets for this attempt",
+      "desc": "The client generates a random state value and a random code_verifier, and keeps both in the user's session. It derives code_challenge = BASE64URL(SHA-256(code_verifier)). Only the challenge will travel through the browser.",
+      "state": [
+        {
+          "title": "Client app: session for this browser",
+          "head": [
+            "Key",
+            "Value"
+          ],
+          "rows": [
+            [
+              "state",
+              "af0ifjsldkj"
+            ],
+            [
+              "code_verifier",
+              "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+            ],
+            [
+              "code_challenge",
+              "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "state ties the answer to this browser session (protection against cross-site request forgery).",
+        "The verifier and challenge are PKCE (RFC 7636). They let the authorization server check later that whoever redeems the code is the same party that started the request."
+      ]
+    },
+    {
+      "from": "client",
+      "to": "browser",
+      "kind": "front",
+      "label": "302 to /authorize",
+      "title": "The client redirects the browser to the authorization server",
+      "desc": "The client answers with an HTTP redirect. The Location header points at the authorization endpoint and carries the request as query parameters.",
+      "fields": [
+        {
+          "group": "HTTP response",
+          "rows": [
+            [
+              "Status",
+              "302 Found"
+            ],
+            [
+              "Location",
+              "https://auth.example.com/authorize?..."
+            ]
+          ]
+        },
+        {
+          "group": "Query parameters",
+          "rows": [
+            [
+              "response_type",
+              "code",
+              "Asks for an authorization code, not a token."
+            ],
+            [
+              "client_id",
+              "s6BhdRkqt3",
+              "Public identifier the client was given when it registered."
+            ],
+            [
+              "redirect_uri",
+              "https://client.example.com/cb"
+            ],
+            [
+              "scope",
+              "calendar.read"
+            ],
+            [
+              "state",
+              "af0ifjsldkj",
+              "Random value the client will check when the browser comes back."
+            ],
+            [
+              "code_challenge",
+              "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+              "SHA-256 of the code_verifier, base64url encoded. The verifier itself stays on the client."
+            ],
+            [
+              "code_challenge_method",
+              "S256"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "from": "browser",
+      "to": "authz",
+      "kind": "front",
+      "label": "GET /authorize?...",
+      "title": "The browser follows the redirect",
+      "desc": "The browser requests the authorization endpoint. This is the front channel: everything in the URL is visible to the browser, its history and anything else that can read the address.",
+      "fields": [
+        {
+          "group": "Query parameters",
+          "rows": [
+            [
+              "response_type",
+              "code",
+              "Asks for an authorization code, not a token."
+            ],
+            [
+              "client_id",
+              "s6BhdRkqt3",
+              "Public identifier the client was given when it registered."
+            ],
+            [
+              "redirect_uri",
+              "https://client.example.com/cb"
+            ],
+            [
+              "scope",
+              "calendar.read"
+            ],
+            [
+              "state",
+              "af0ifjsldkj",
+              "Random value the client will check when the browser comes back."
+            ],
+            [
+              "code_challenge",
+              "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+              "SHA-256 of the code_verifier, base64url encoded. The verifier itself stays on the client."
+            ],
+            [
+              "code_challenge_method",
+              "S256"
+            ]
+          ]
+        }
+      ],
+      "status": {
+        "browser": "on auth.example.com"
+      }
+    },
+    {
+      "from": "authz",
+      "kind": "check",
+      "label": "known client + redirect?",
+      "title": "The authorization server checks the client and redirect URI",
+      "desc": "Before showing anything, the server looks up client_id and compares redirect_uri with the one registered for that client. Both match, so the request continues.",
+      "state": [
+        {
+          "title": "Authorization server: registered clients",
+          "head": [
+            "client_id",
+            "Registered redirect URI",
+            "Result"
+          ],
+          "rows": [
+            [
+              "s6BhdRkqt3",
+              "https://client.example.com/cb",
+              "exact match"
+            ]
+          ],
+          "mark": [
+            0
+          ]
+        }
+      ],
+      "notes": [
+        "If the redirect URI does not match, the server must not redirect the browser to it. It shows the user an error page instead, so a code can never be sent to an address an attacker supplied."
+      ]
+    },
+    {
+      "from": "authz",
+      "to": "browser",
+      "kind": "front",
+      "label": "login + consent page",
+      "title": "The server asks the user to sign in and approve",
+      "desc": "The authorization server shows its own sign-in page, then a consent screen: \"Client app wants to read your calendar\".",
+      "notes": [
+        "How the user signs in (password, passkey, an existing session) is up to the authorization server. OAuth does not define it."
+      ]
+    },
+    {
+      "from": "browser",
+      "to": "authz",
+      "kind": "front",
+      "label": "sign in + approve",
+      "title": "The user signs in and approves the request",
+      "desc": "The user's credentials go to the authorization server only. The client app never sees them. This is the point of the whole flow.",
+      "status": {
+        "browser": "approved calendar.read"
+      }
+    },
+    {
+      "from": "authz",
+      "kind": "check",
+      "label": "issue one-time code",
+      "title": "The server issues a short-lived authorization code",
+      "desc": "The server creates a code and records what it is bound to: the client, the redirect URI and the code_challenge from the request. The code is not a token. It is a one-time voucher for one.",
+      "state": [
+        {
+          "title": "Authorization server: issued codes",
+          "head": [
+            "Code",
+            "Issued to",
+            "Bound to",
+            "Expires",
+            "Used"
+          ],
+          "rows": [
+            [
+              "SplxlOBeZQQYbYS6WxSbIA",
+              "s6BhdRkqt3",
+              "redirect_uri + code_challenge",
+              "in 60 s",
+              "no"
+            ]
+          ],
+          "mark": [
+            0
+          ]
+        }
+      ],
+      "notes": [
+        "RFC 6749 recommends a lifetime of at most 10 minutes. Many servers use about a minute."
+      ]
+    },
+    {
+      "from": "authz",
+      "to": "browser",
+      "kind": "front",
+      "label": "302 to /cb?code=...",
+      "title": "The server redirects back with the code",
+      "desc": "The browser is sent to the client's redirect URI. The code and the unchanged state value ride in the query string.",
+      "fields": [
+        {
+          "group": "HTTP response",
+          "rows": [
+            [
+              "Status",
+              "302 Found"
+            ],
+            [
+              "Location",
+              "https://client.example.com/cb?code=SplxlOBeZQQYbYS6WxSbIA&state=af0ifjsldkj"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "from": "browser",
+      "to": "client",
+      "kind": "front",
+      "label": "GET /cb?code=...&state=...",
+      "title": "The browser delivers the code to the client",
+      "desc": "The code passes through the browser, so it may be seen there. That is acceptable only because a code alone is not enough to get a token.",
+      "fields": [
+        {
+          "group": "Query parameters",
+          "rows": [
+            [
+              "code",
+              "SplxlOBeZQQYbYS6WxSbIA"
+            ],
+            [
+              "state",
+              "af0ifjsldkj"
+            ]
+          ]
+        }
+      ],
+      "status": {
+        "browser": "on client.example.com"
+      }
+    },
+    {
+      "from": "client",
+      "kind": "check",
+      "label": "state matches session?",
+      "title": "The client checks state against the session",
+      "desc": "The state in the URL equals the state stored in this browser's session, so the response belongs to a request this user started here. A missing or different value means the client must stop.",
+      "state": [
+        {
+          "title": "Client app: session for this browser",
+          "head": [
+            "Key",
+            "Value"
+          ],
+          "rows": [
+            [
+              "state",
+              "af0ifjsldkj (matches the URL)"
+            ],
+            [
+              "code_verifier",
+              "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+            ],
+            [
+              "code_challenge",
+              "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "from": "client",
+      "to": "authz",
+      "kind": "back",
+      "label": "POST /token code + verifier",
+      "title": "The client exchanges the code for tokens",
+      "desc": "The client calls the token endpoint directly, server to server (the back channel). It authenticates with its own credentials and sends the code together with the code_verifier it kept secret.",
+      "fields": [
+        {
+          "group": "Form body",
+          "rows": [
+            [
+              "grant_type",
+              "authorization_code"
+            ],
+            [
+              "code",
+              "SplxlOBeZQQYbYS6WxSbIA"
+            ],
+            [
+              "redirect_uri",
+              "https://client.example.com/cb",
+              "Must equal the one used in the authorization request."
+            ],
+            [
+              "code_verifier",
+              "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+              "Sent for the first time here. It never went through the browser."
+            ]
+          ]
+        }
+      ],
+      "payload": "POST /token HTTP/1.1\nHost: auth.example.com\nAuthorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code\n&code=SplxlOBeZQQYbYS6WxSbIA\n&redirect_uri=https%3A%2F%2Fclient.example.com%2Fcb\n&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+      "notes": [
+        "The Authorization header is the client_id and client secret (HTTP Basic). An app that cannot keep a secret, such as a mobile or single-page app, sends client_id only and relies on PKCE."
+      ]
+    },
+    {
+      "from": "authz",
+      "kind": "check",
+      "label": "verify code + PKCE",
+      "title": "The server verifies everything the code was bound to",
+      "desc": "Every check must pass. The last one is PKCE: the server hashes the code_verifier it just received and compares the result with the code_challenge it stored. Then it marks the code as used.",
+      "state": [
+        {
+          "title": "Token request checks",
+          "head": [
+            "Check",
+            "Result"
+          ],
+          "rows": [
+            [
+              "Client credentials are valid",
+              "pass"
+            ],
+            [
+              "Code exists, not expired, not used",
+              "pass"
+            ],
+            [
+              "Code was issued to this client",
+              "pass"
+            ],
+            [
+              "redirect_uri equals the original",
+              "pass"
+            ],
+            [
+              "BASE64URL(SHA-256(verifier)) = challenge",
+              "pass"
+            ]
+          ]
+        },
+        {
+          "title": "Authorization server: issued codes",
+          "head": [
+            "Code",
+            "Issued to",
+            "Bound to",
+            "Expires",
+            "Used"
+          ],
+          "rows": [
+            [
+              "SplxlOBeZQQYbYS6WxSbIA",
+              "s6BhdRkqt3",
+              "redirect_uri + code_challenge",
+              "in 60 s",
+              "yes"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "from": "authz",
+      "to": "client",
+      "kind": "back",
+      "label": "200 access token",
+      "title": "The server returns an access token",
+      "desc": "The response is JSON and must not be cached. The access token is what the client will present to the API. The refresh token lets it get a new access token later without involving the user.",
+      "payload": "HTTP/1.1 200 OK\nContent-Type: application/json\nCache-Control: no-store\n\n{\n  \"access_token\": \"2YotnFZFEjr1zCsicMWpAA\",\n  \"token_type\": \"Bearer\",\n  \"expires_in\": 3600,\n  \"refresh_token\": \"tGzv3JOkF0XG5Qx2TlKWIA\",\n  \"scope\": \"calendar.read\"\n}",
+      "status": {
+        "client": "has access token"
+      }
+    },
+    {
+      "from": "client",
+      "to": "api",
+      "kind": "api",
+      "label": "GET /events + Bearer token",
+      "title": "The client calls the API with the token",
+      "desc": "The access token goes in the Authorization header. \"Bearer\" means whoever holds the token can use it, which is why it is only ever sent over TLS and never through the browser's address bar.",
+      "payload": "GET /events HTTP/1.1\nHost: api.example.com\nAuthorization: Bearer 2YotnFZFEjr1zCsicMWpAA"
+    },
+    {
+      "from": "api",
+      "kind": "check",
+      "label": "token valid for this?",
+      "title": "The resource server validates the token",
+      "desc": "The API checks that the token is genuine, has not expired and covers this request (scope calendar.read). It passes.",
+      "notes": [
+        "OAuth 2.0 does not say how the API validates a token. Two common ways: the token is a signed JWT the API can verify itself (RFC 9068), or the API asks the authorization server (token introspection, RFC 7662).",
+        "A missing, expired or invalid token gets 401 with a WWW-Authenticate: Bearer header. A valid token without the needed scope gets 403 insufficient_scope."
+      ]
+    },
+    {
+      "from": "api",
+      "to": "client",
+      "kind": "api",
+      "label": "200 calendar events",
+      "title": "The API returns the user's calendar",
+      "desc": "The client has the data it asked for. At no point did it handle the user's password, and its access is limited to the scope the user approved.",
+      "status": {
+        "client": "showing calendar"
+      }
+    },
+    {
+      "from": "attacker",
+      "to": "authz",
+      "kind": "back",
+      "label": "POST /token copied code",
+      "title": "What if: someone replays a copied code",
+      "desc": "Suppose an attacker copied the code from the redirect URL (from browser history, a log file or a malicious app on the device) and sends it to the token endpoint. They have the code, but not the code_verifier.",
+      "fields": [
+        {
+          "group": "Form body",
+          "rows": [
+            [
+              "grant_type",
+              "authorization_code"
+            ],
+            [
+              "code",
+              "SplxlOBeZQQYbYS6WxSbIA"
+            ],
+            [
+              "redirect_uri",
+              "https://client.example.com/cb"
+            ],
+            [
+              "code_verifier",
+              "(a guess, or missing)",
+              "The real one never left the client app."
+            ]
+          ],
+          "changed": [
+            "code_verifier"
+          ]
+        }
+      ]
+    },
+    {
+      "from": "authz",
+      "kind": "check",
+      "label": "refuse: reused, no verifier",
+      "title": "The server refuses the code",
+      "desc": "Two independent checks fail. The code has already been used, and the verifier does not hash to the stored challenge. Either one is enough to refuse.",
+      "fail": "An authorization code works once, and only together with the code_verifier that matches its code_challenge. The attacker has neither a fresh code nor the verifier.",
+      "state": [
+        {
+          "title": "Token request checks",
+          "head": [
+            "Check",
+            "Result"
+          ],
+          "rows": [
+            [
+              "Client credentials are valid",
+              "FAIL: none supplied"
+            ],
+            [
+              "Code exists, not expired, not used",
+              "FAIL: already used"
+            ],
+            [
+              "Code was issued to this client",
+              "not reached"
+            ],
+            [
+              "redirect_uri equals the original",
+              "not reached"
+            ],
+            [
+              "BASE64URL(SHA-256(verifier)) = challenge",
+              "FAIL: no match"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "When a code is presented a second time, the server should also revoke the tokens it issued from that code, because it cannot tell which caller was the genuine one."
+      ]
+    },
+    {
+      "from": "authz",
+      "to": "attacker",
+      "kind": "back",
+      "label": "400 invalid_grant",
+      "title": "The attacker gets an error, not a token",
+      "desc": "The token endpoint answers 400 Bad Request with the error code invalid_grant. No token is issued.",
+      "payload": "HTTP/1.1 400 Bad Request\nContent-Type: application/json\nCache-Control: no-store\n\n{\n  \"error\": \"invalid_grant\"\n}",
+      "status": {
+        "attacker": "no token"
+      }
+    }
+  ],
+  "simplifications": [
+    "TLS is assumed everywhere and not drawn. Every arrow here is an HTTPS request or response.",
+    "The login and consent exchange is two steps. Real sign-in is several requests and may include multi-factor authentication.",
+    "The client is a confidential web app with a client secret. Public clients (mobile and single-page apps) send no secret and depend on PKCE alone.",
+    "Refresh token use and rotation, token revocation and expiry handling are left out.",
+    "How the resource server validates the access token is summarised in one step; it differs between providers.",
+    "OpenID Connect (ID tokens, nonce, user info) is a layer on top of this flow and is not shown.",
+    "In the replay case the three failed checks are shown together; a real server stops at the first one that fails.",
+    "Token values are the short examples from the RFCs. Real tokens are longer."
+  ],
+  "sources": [
+    {
+      "title": "RFC 6749: The OAuth 2.0 Authorization Framework, sections 4.1, 5.1, 5.2 and 10.12",
+      "url": "https://www.rfc-editor.org/rfc/rfc6749",
+      "note": "The authorization code grant, token responses, the invalid_grant error, single use of codes and the state parameter. Example values (client_id, code, tokens) are taken from here."
+    },
+    {
+      "title": "RFC 7636: Proof Key for Code Exchange (PKCE)",
+      "url": "https://www.rfc-editor.org/rfc/rfc7636",
+      "note": "code_verifier, code_challenge and the S256 method. The verifier and challenge are the test vector in Appendix B."
+    },
+    {
+      "title": "RFC 6750: Bearer Token Usage",
+      "url": "https://www.rfc-editor.org/rfc/rfc6750",
+      "note": "The Authorization: Bearer header and the 401 / 403 error responses."
+    },
+    {
+      "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+      "url": "https://www.rfc-editor.org/rfc/rfc9700",
+      "note": "Exact redirect URI matching and PKCE as current practice."
+    },
+    {
+      "title": "RFC 7662 (token introspection) and RFC 9068 (JWT access tokens)",
+      "url": "https://www.rfc-editor.org/rfc/rfc9068",
+      "note": "The two common ways a resource server validates a token."
+    }
+  ]
+}

@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>TCP three-way handshake</title>
+<!--
+  visualize-anything player 0.1.0
+  One file, no dependencies, no network requests. The subject is the JSON in
+  the <script id="spec"> block near the end of this file; everything else is
+  the fixed player. Format: references/spec.md. MIT licence.
+-->
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --panel2: #f0f2f5; --fg: #17202b; --muted: #5b6776;
+  --line: #d6dbe2; --ground: #e9ecf1; --wire: #9aa5b3;
+  --blue: #2563eb; --green: #15803d; --amber: #a16207; --purple: #7c3aed; --pink: #be185d;
+  --orange: #c2410c; --cyan: #0e7490; --gray: #5b6776; --red: #d42020;
+  --changed-bg: #fff3c4; --changed-fg: #6b4a00; --shadow: 0 1px 2px rgba(20, 30, 45, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141b; --panel: #171e27; --panel2: #1f2833; --fg: #e6ebf2; --muted: #9aa7b6;
+    --line: #2d3846; --ground: #131a23; --wire: #5d6b7c;
+    --blue: #6aa9ff; --green: #4ade80; --amber: #fbbf24; --purple: #b197fc; --pink: #f57fb8;
+    --orange: #fb9a4b; --cyan: #33d6ec; --gray: #a3afbd; --red: #ff6b6b;
+    --changed-bg: #4a3b08; --changed-fg: #ffe08a; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141b; --panel: #171e27; --panel2: #1f2833; --fg: #e6ebf2; --muted: #9aa7b6;
+  --line: #2d3846; --ground: #131a23; --wire: #5d6b7c;
+  --blue: #6aa9ff; --green: #4ade80; --amber: #fbbf24; --purple: #b197fc; --pink: #f57fb8;
+  --orange: #fb9a4b; --cyan: #33d6ec; --gray: #a3afbd; --red: #ff6b6b;
+  --changed-bg: #4a3b08; --changed-fg: #ffe08a; --shadow: none;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+button { font: inherit; color: inherit; }
+.app {
+  max-width: 1440px; margin: 0 auto; padding: 16px; display: grid; gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  grid-template-areas: "head head" "stage insp" "seq insp" "about about";
+  align-items: start;
+}
+.head { grid-area: head; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.head h1 { margin: 0; font-size: 20px; line-height: 1.25; }
+.head p { margin: 4px 0 0; color: var(--muted); max-width: 78ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--c); color: var(--c); font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  background: color-mix(in srgb, var(--c) 12%, transparent);
+}
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.stage { grid-area: stage; min-width: 0; }
+.scene-wrap { overflow: auto; background: var(--ground); border-radius: 10px 10px 0 0; max-height: 62vh; }
+.scene-wrap svg { display: block; margin: 0 auto; }
+.caption {
+  display: flex; gap: 8px; align-items: baseline; padding: 8px 12px; border-top: 1px solid var(--line);
+  min-height: 38px;
+}
+.caption b { font-weight: 600; }
+.caption .n { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.playbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line);
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 32px;
+  padding: 0 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); cursor: pointer;
+}
+.btn:hover:not(:disabled) { background: var(--panel2); }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn:focus-visible, .row:focus-visible, .dot:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.btn.primary { background: var(--fg); color: var(--panel); border-color: var(--fg); min-width: 84px; font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: var(--fg); opacity: .88; }
+.btn svg { width: 14px; height: 14px; fill: currentColor; }
+.dots { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 120px; align-items: center; padding: 0 6px; }
+.dot {
+  width: 10px; height: 10px; padding: 0; border-radius: 50%; border: 1.5px solid var(--wire); background: transparent; cursor: pointer;
+}
+.dot.past { background: var(--c); border-color: var(--c); opacity: .55; }
+.dot.cur { background: var(--c); border-color: var(--c); transform: scale(1.35); }
+.dot.fail { border-color: var(--red); }
+.dot.fail.past, .dot.fail.cur { background: var(--red); }
+.speeds { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.speeds button { border: 0; background: var(--panel); height: 30px; padding: 0 7px; cursor: pointer; font-size: 12px; }
+.speeds button.on { background: var(--fg); color: var(--panel); }
+.hint { color: var(--muted); font-size: 11.5px; padding: 0 12px 8px; }
+kbd {
+  font: 11px ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 4px; padding: 0 4px; background: var(--panel2);
+}
+
+/* scene */
+.zone { fill: color-mix(in srgb, var(--c) 9%, transparent); stroke: var(--c); stroke-width: 1.2; stroke-dasharray: 6 4; }
+.zone-label { fill: var(--c); font-size: 11.5px; font-weight: 600; letter-spacing: .02em; }
+.link { stroke: var(--wire); stroke-width: 1.6; stroke-dasharray: 5 5; fill: none; }
+.path { stroke: var(--c); stroke-width: 3; fill: none; stroke-linecap: round; }
+.path.adhoc { stroke-dasharray: 7 6; stroke-width: 2.2; }
+.actor { --c: var(--wire); }
+.actor .f { stroke: var(--c); stroke-width: 1.4; stroke-linejoin: round; }
+.actor .f.top { fill: color-mix(in srgb, var(--c) 22%, var(--panel)); }
+.actor .f.front { fill: color-mix(in srgb, var(--c) 12%, var(--panel)); }
+.actor .f.side { fill: color-mix(in srgb, var(--c) 36%, var(--panel)); }
+.actor .d { stroke: var(--c); stroke-width: 1.2; fill: none; opacity: .75; }
+.actor .shadow { fill: #000; opacity: .08; }
+.actor.on .f { stroke-width: 2.2; }
+.actor.on .f.top { fill: color-mix(in srgb, var(--c) 42%, var(--panel)); }
+.actor.on .f.front { fill: color-mix(in srgb, var(--c) 26%, var(--panel)); }
+.actor.on .f.side { fill: color-mix(in srgb, var(--c) 58%, var(--panel)); }
+.alabel text { text-anchor: middle; }
+.alabel .name, .alabel .sub, .zone-label { paint-order: stroke; stroke: var(--ground); stroke-width: 4px; stroke-linejoin: round; }
+.alabel .name { fill: var(--fg); font-size: 12.5px; font-weight: 600; }
+.alabel .sub { fill: var(--muted); font-size: 10.5px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.alabel .st-bg { fill: var(--panel); stroke: var(--wire); stroke-width: 1; }
+.alabel .st { fill: var(--fg); font-size: 10.5px; font-weight: 600; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.alabel.flash .st-bg { fill: var(--changed-bg); stroke: var(--changed-fg); }
+.alabel.flash .st { fill: var(--changed-fg); }
+.token .body { fill: var(--c); stroke: var(--panel); stroke-width: 1.5; filter: drop-shadow(0 0 5px var(--c)); }
+.token .cross { stroke: #fff; stroke-width: 2.4; stroke-linecap: round; display: none; }
+.token .pill-bg { fill: var(--panel); stroke: var(--c); stroke-width: 1.3; }
+.token .pill { fill: var(--c); font-size: 11.5px; font-weight: 600; text-anchor: middle; }
+.token.failed { --c: var(--red) !important; }
+.token.failed .cross { display: block; }
+.ring { fill: none; stroke: var(--c); stroke-width: 2; }
+
+/* timeline */
+.seq { grid-area: seq; min-width: 0; overflow: hidden; }
+.seq h2, .insp h3, .about h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0; font-weight: 600; }
+.seq > h2 { padding: 10px 12px 6px; }
+.seq-scroll { overflow: auto; max-height: 420px; }
+.seq-inner { position: relative; }
+.seq-head { position: sticky; top: 0; z-index: 2; display: flex; background: var(--panel); border-bottom: 1px solid var(--line); }
+.seq-head div { flex: 1 1 0; min-width: 0; text-align: center; padding: 5px 4px; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seq-rows { position: relative; }
+.life { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--line); }
+.row {
+  position: relative; display: block; width: 100%; height: 44px; border: 0; background: transparent; cursor: pointer;
+  padding: 0; text-align: left; overflow: hidden; opacity: .45;
+}
+.row.past { opacity: .75; }
+.row.cur { opacity: 1; background: color-mix(in srgb, var(--c) 10%, transparent); }
+.row:hover { opacity: 1; }
+.row .num { position: absolute; left: 6px; top: 13px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.arrow { position: absolute; top: 28px; height: 0; border-top: 2px solid var(--c); }
+.row.cur .arrow { border-top-width: 3px; }
+.arrow::after {
+  content: ""; position: absolute; top: -6px; border: 5px solid transparent;
+}
+.arrow.r::after { right: -1px; border-left: 8px solid var(--c); border-right: 0; }
+.arrow.l::after { left: -1px; border-right: 8px solid var(--c); border-left: 0; }
+.arrow .lab, .self .lab {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 4px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 600; color: var(--c);
+}
+.row.fail { --c: var(--red) !important; }
+.row.fail .arrow { border-top-style: dashed; }
+.row.fail .arrow::after { border: 0; content: "\2715"; color: var(--red); font-weight: 700; font-size: 13px; top: -11px; }
+.row.fail .arrow.r::after { right: -12px; }
+.row.fail .arrow.l::after { left: -12px; }
+.self {
+  position: absolute; top: 10px; height: 24px; border: 1.3px dashed var(--c);
+  border-radius: 6px; background: var(--panel); padding: 0 8px; max-width: calc(100% - 34px);
+}
+.self .lab { position: static; transform: none; display: block; line-height: 21px; overflow: hidden; text-overflow: ellipsis; }
+.row.fail .self { border-style: solid; }
+.row.fail .self .lab::before { content: "\2715  "; }
+
+/* inspector */
+.insp { grid-area: insp; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; padding: 14px; }
+.insp-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.insp h2 { font-size: 17px; line-height: 1.3; margin: 8px 0 4px; }
+.route { color: var(--muted); font-size: 12.5px; }
+.route b { color: var(--fg); font-weight: 600; }
+.route .ar { color: var(--c); padding: 0 4px; }
+.failbox {
+  margin: 10px 0 0; padding: 8px 10px; border: 1px solid var(--red); border-left-width: 4px; border-radius: 6px;
+  background: color-mix(in srgb, var(--red) 9%, transparent);
+}
+.failbox b { color: var(--red); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.desc { margin: 10px 0 0; }
+.insp section { margin-top: 16px; }
+.insp h3 { margin-bottom: 6px; }
+.group { border-left: 3px solid var(--c); padding-left: 10px; margin-bottom: 10px; }
+.group-name { color: var(--c); font-weight: 600; font-size: 12.5px; margin-bottom: 2px; }
+.field { display: grid; grid-template-columns: minmax(90px, 38%) 1fr; column-gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+.field:last-child { border-bottom: 0; }
+.field .k { color: var(--muted); font-size: 12.5px; }
+.field .v { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+.field .note { grid-column: 1 / -1; color: var(--muted); font-size: 12px; padding-bottom: 2px; }
+.field.changed { background: var(--changed-bg); margin: 0 -6px; padding: 3px 6px; border-radius: 4px; border-bottom-color: transparent; }
+.field.changed .k, .field.changed .v, .field.changed .note { color: var(--changed-fg); }
+.tag {
+  display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; font: 600 10px/15px system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: .05em; border: 1px solid currentColor; vertical-align: 1px;
+}
+pre.payload {
+  margin: 0; padding: 9px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+  font-size: 12px; line-height: 1.45; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.tbl-wrap { overflow-x: auto; margin-bottom: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+caption { text-align: left; font-weight: 600; padding-bottom: 3px; }
+th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11.5px; border-bottom: 1px solid var(--line); padding: 3px 8px 3px 0; }
+td { border-bottom: 1px solid var(--line); padding: 3px 8px 3px 0; vertical-align: top; font-family: ui-monospace, Menlo, Consolas, monospace; overflow-wrap: break-word; }
+th { white-space: nowrap; }
+td.changed { background: var(--changed-bg); color: var(--changed-fg); }
+tr.mark td:first-child { box-shadow: inset 3px 0 0 var(--c); padding-left: 8px; font-weight: 600; }
+.tbl-key { color: var(--muted); font-size: 11.5px; margin: -4px 0 0; }
+.tbl-key i { display: inline-block; width: 10px; height: 10px; background: var(--changed-bg); border: 1px solid var(--changed-fg); vertical-align: -1px; margin-right: 4px; }
+ul.notes { margin: 0; padding-left: 18px; }
+ul.notes li { margin-bottom: 4px; }
+
+/* about */
+.about { grid-area: about; padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.about ul { margin: 6px 0 0; padding-left: 18px; }
+.about li { margin-bottom: 4px; overflow-wrap: anywhere; }
+.about a { color: var(--blue); }
+.foot { grid-column: 1 / -1; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.error { grid-column: 1 / -1; padding: 16px; border: 1px solid var(--red); border-radius: 10px; white-space: pre-wrap; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "stage" "insp" "seq" "about"; padding: 10px; gap: 10px; }
+  .insp { position: static; max-height: none; }
+  .about { grid-template-columns: 1fr; }
+  .scene-wrap { max-height: 56vh; }
+  .hint { display: none; }
+  .head h1 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<noscript><p style="padding:16px">This explainer needs JavaScript to play. The content is the JSON block inside this file.</p></noscript>
+<div class="app" id="app">
+  <header class="head">
+    <div>
+      <h1 id="title"></h1>
+      <p id="summary"></p>
+      <div class="legend" id="legend"></div>
+    </div>
+    <button class="btn" id="theme" type="button" aria-label="Switch between light and dark theme" title="Light / dark (T)">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12.5v-11a5.5 5.5 0 0 1 0 11z"/></svg>
+    </button>
+  </header>
+
+  <div class="stage card">
+    <div class="scene-wrap" id="sceneWrap"></div>
+    <div class="caption"><span class="n" id="capN"></span><span class="chip" id="capKind"></span><b id="capTitle"></b></div>
+    <div class="playbar">
+      <button class="btn" id="first" type="button" aria-label="Restart" title="Restart (Home)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg></button>
+      <button class="btn" id="prev" type="button" aria-label="Previous step" title="Previous step (Left arrow)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12 2v12L3 8z"/></svg></button>
+      <button class="btn primary" id="play" type="button" title="Play / pause (Space)"></button>
+      <button class="btn" id="next" type="button" aria-label="Next step" title="Next step (Right arrow)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2v12l9-6z"/></svg></button>
+      <div class="dots" id="dots"></div>
+      <div class="speeds" id="speeds" role="group" aria-label="Playback speed"></div>
+    </div>
+    <div class="hint"><kbd>Space</kbd> play or pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> step &nbsp; <kbd>Home</kbd> <kbd>End</kbd> first or last &nbsp; <kbd>,</kbd> <kbd>.</kbd> slower or faster &nbsp; <kbd>T</kbd> theme</div>
+  </div>
+
+  <aside class="insp card" id="insp" aria-live="polite" aria-label="Step details"></aside>
+
+  <div class="seq card">
+    <h2>Sequence</h2>
+    <div class="seq-scroll" id="seqScroll"><div class="seq-inner" id="seqInner"></div></div>
+  </div>
+
+  <footer class="about card" id="about"></footer>
+</div>
+
+<script type="application/json" id="spec">
+{"version":1,"id":"tcp-handshake","title":"TCP three-way handshake","summary":"A client opens a TCP connection to a server on port 443. The first SYN is lost and retransmitted, then both ends exchange initial sequence numbers and reach ESTABLISHED.","kinds":{"syn":{"label":"SYN segment","color":"green"},"ack":{"label":"ACK segment","color":"blue"},"data":{"label":"Data segment","color":"purple"},"local":{"label":"Local decision","color":"gray"}},"actors":[{"id":"client","label":"Client","sub":"192.0.2.10:51514","shape":"screen","pos":[0,0]},{"id":"server","label":"Server","sub":"198.51.100.20:443","shape":"tower","pos":[6,0]}],"zones":[{"label":"Host A","x":-1.6,"y":-1.4,"w":3.2,"h":3.9,"color":"cyan"},{"label":"Host B","x":4.4,"y":-1.4,"w":3.2,"h":3.9,"color":"amber"}],"links":[["client","server"]],"steps":[{"from":"server","kind":"local","label":"passive OPEN","title":"The server starts listening on port 443","desc":"A program on the server asks TCP to accept connections on port 443. This is a passive OPEN: nothing is sent. The server just waits in the LISTEN state.","status":{"client":"CLOSED","server":"LISTEN"},"notes":["No connection exists yet, so there are no sequence numbers on either side."]},{"from":"client","kind":"local","label":"active OPEN, ISS = 1000","title":"The client picks an initial sequence number","desc":"A program on the client asks TCP to connect (an active OPEN). TCP creates a connection record and picks an initial send sequence number (ISS). This example uses 1000 so the arithmetic is easy to follow.","state":[{"title":"Client connection record (TCB)","head":["Variable","Value","Meaning"],"rows":[["State","CLOSED","Where this end is in the handshake"],["ISS","1000","Initial send sequence number"],["SND.UNA","1000","Oldest byte sent but not yet acknowledged"],["SND.NXT","1000","Next sequence number to send"],["IRS","unknown","Initial sequence number received from the peer"],["RCV.NXT","unknown","Next byte expected from the peer"]]}],"notes":["A real ISS is a 32-bit number that is hard to guess: a clock value plus a keyed hash of the two addresses and ports (RFC 6528). Guessable numbers would let an outsider inject data."]},{"from":"client","to":"server","kind":"syn","label":"SYN seq=1000","title":"First SYN is lost on the way","desc":"The client sends a SYN carrying its ISS and enters SYN-SENT. This copy is dropped somewhere in the network. TCP is built on a network that may lose packets, so this is a normal event, not an error.","fail":"A router on the path dropped the packet. Nothing tells the client: the only sign is that no reply comes back.","fields":[{"group":"IPv4 header","color":"blue","rows":[["Source address","192.0.2.10"],["Destination address","198.51.100.20"],["Protocol","6 (TCP)"]]},{"group":"TCP header","color":"green","rows":[["Source port","51514"],["Destination port","443"],["Sequence number","1000","Number of the first byte this segment occupies in the sender's stream."],["Acknowledgment number","0 (ACK flag not set)"],["Flags","SYN"],["Window","65535","How many bytes the sender of this segment is willing to receive."],["Options","MSS 1460, SACK permitted, window scale 7"],["Payload","0 bytes"]]}],"status":{"client":"SYN-SENT"},"state":[{"title":"Client connection record (TCB)","head":["Variable","Value","Meaning"],"rows":[["State","SYN-SENT","Where this end is in the handshake"],["ISS","1000","Initial send sequence number"],["SND.UNA","1000","Oldest byte sent but not yet acknowledged"],["SND.NXT","1001","Next sequence number to send"],["IRS","unknown","Initial sequence number received from the peer"],["RCV.NXT","unknown","Next byte expected from the peer"]]}],"notes":["The SYN flag takes up one sequence number even though it carries no data. That is why SND.NXT is now 1001."]},{"from":"client","kind":"local","label":"timer expires after 1 s","title":"The retransmission timer runs out","desc":"When the client sent the SYN it started a retransmission timer. No round-trip time has been measured yet, so the timeout starts at 1 second. It expires with no reply, so the client sends the same SYN again and doubles the timeout.","state":[{"title":"Client retransmission timer","head":["Attempt","Sent at","Timeout (RTO)","Result"],"rows":[["1","0.0 s","1 s","expired, no reply"],["2","1.0 s","2 s","running"]],"mark":[1]}],"notes":["The 1 second starting value and the doubling come from RFC 6298.","A client does not retry for ever. Linux, for example, retransmits a SYN 6 times by default (tcp_syn_retries) before reporting a timeout to the program."]},{"from":"client","to":"server","kind":"syn","label":"SYN seq=1000 (again)","title":"The retransmitted SYN arrives","desc":"The second copy is identical to the first: same ports, same sequence number. The SYN also carries options that can only be agreed during the handshake, such as the largest segment the client can receive (MSS).","fields":[{"group":"IPv4 header","color":"blue","rows":[["Source address","192.0.2.10"],["Destination address","198.51.100.20"],["Protocol","6 (TCP)"]]},{"group":"TCP header","color":"green","rows":[["Source port","51514"],["Destination port","443"],["Sequence number","1000","Number of the first byte this segment occupies in the sender's stream."],["Acknowledgment number","0 (ACK flag not set)"],["Flags","SYN"],["Window","65535","How many bytes the sender of this segment is willing to receive."],["Options","MSS 1460, SACK permitted, window scale 7"],["Payload","0 bytes"]]}],"notes":["MSS 1460 = a 1500-byte Ethernet payload minus 20 bytes of IPv4 header and 20 bytes of TCP header."]},{"from":"server","kind":"local","label":"record 1000, ISS = 5000","title":"The server records the client's number and picks its own","desc":"The SYN matches a listening port. The server creates its own connection record, stores the client's initial sequence number (IRS = 1000), expects byte 1001 next, and picks its own ISS, 5000 in this example.","status":{"server":"SYN-RECEIVED"},"state":[{"title":"Server connection record (TCB)","head":["Variable","Value","Meaning"],"rows":[["State","SYN-RECEIVED","Where this end is in the handshake"],["ISS","5000","Initial send sequence number"],["SND.UNA","5000","Oldest byte sent but not yet acknowledged"],["SND.NXT","5000","Next sequence number to send"],["IRS","1000","Initial sequence number received from the peer"],["RCV.NXT","1001","Next byte expected from the peer"]]}],"notes":["If nothing were listening on port 443, the server would answer with a RST segment and the client would report \"connection refused\"."]},{"from":"server","to":"client","kind":"syn","label":"SYN, ACK seq=5000 ack=1001","title":"The server answers with SYN, ACK","desc":"One segment does two jobs. The ACK flag with acknowledgment 1001 says \"I received your SYN and expect byte 1001 next\". The SYN flag with sequence 5000 says \"my own numbering starts here\".","fields":[{"group":"IPv4 header","color":"blue","rows":[["Source address","198.51.100.20"],["Destination address","192.0.2.10"],["Protocol","6 (TCP)"]]},{"group":"TCP header","color":"green","rows":[["Source port","443"],["Destination port","51514"],["Sequence number","5000","Number of the first byte this segment occupies in the sender's stream."],["Acknowledgment number","1001","The next byte this side expects from the other."],["Flags","SYN, ACK"],["Window","65535","How many bytes the sender of this segment is willing to receive."],["Options","MSS 1460, SACK permitted, window scale 7"],["Payload","0 bytes"]],"changed":["Sequence number","Acknowledgment number","Flags"]}],"state":[{"title":"Server connection record (TCB)","head":["Variable","Value","Meaning"],"rows":[["State","SYN-RECEIVED","Where this end is in the handshake"],["ISS","5000","Initial send sequence number"],["SND.UNA","5000","Oldest byte sent but not yet acknowledged"],["SND.NXT","5001","Next sequence number to send"],["IRS","1000","Initial sequence number received from the peer"],["RCV.NXT","1001","Next byte expected from the peer"]]}]},{"from":"client","kind":"local","label":"is ack 1001 acceptable?","title":"The client checks the acknowledgment","desc":"The client accepts the segment only if it acknowledges something the client really sent: SND.UNA \u003c ack \u003c= SND.NXT, here 1000 \u003c 1001 \u003c= 1001. It passes, so the client records the server's number (IRS = 5000) and moves to ESTABLISHED.","status":{"client":"ESTABLISHED"},"state":[{"title":"Client connection record (TCB)","head":["Variable","Value","Meaning"],"rows":[["State","ESTABLISHED","Where this end is in the handshake"],["ISS","1000","Initial send sequence number"],["SND.UNA","1001","Oldest byte sent but not yet acknowledged"],["SND.NXT","1001","Next sequence number to send"],["IRS","5000","Initial sequence number received from the peer"],["RCV.NXT","5001","Next byte expected from the peer"]]}],"notes":["A SYN, ACK with a wrong acknowledgment number (an old duplicate, or a forgery) is answered with a RST instead."]},{"from":"client","to":"server","kind":"ack","label":"ACK seq=1001 ack=5001","title":"The client acknowledges the server's SYN","desc":"The third segment acknowledges the server's SYN: acknowledgment 5001 means \"I expect byte 5001 next\". It carries no SYN flag and no data, so it does not use up a sequence number.","fields":[{"group":"IPv4 header","color":"blue","rows":[["Source address","192.0.2.10"],["Destination address","198.51.100.20"],["Protocol","6 (TCP)"]]},{"group":"TCP header","color":"green","rows":[["Source port","51514"],["Destination port","443"],["Sequence number","1001","Number of the first byte this segment occupies in the sender's stream."],["Acknowledgment number","5001","The next byte this side expects from the other."],["Flags","ACK"],["Window","65535","How many bytes the sender of this segment is willing to receive."],["Options","none"],["Payload","0 bytes"]],"changed":["Sequence number","Acknowledgment number","Flags","Options"]}],"notes":["From the client's point of view the connection is already open. It may send data straight after this segment, or even inside it."]},{"from":"server","kind":"local","label":"is ack 5001 acceptable?","title":"The server checks the acknowledgment and is connected","desc":"The server runs the same test on its side: 5000 \u003c 5001 \u003c= 5001. It passes, so the server moves to ESTABLISHED. Both ends now know both starting numbers, and each has proof the other received its own.","status":{"server":"ESTABLISHED"},"state":[{"title":"Server connection record (TCB)","head":["Variable","Value","Meaning"],"rows":[["State","ESTABLISHED","Where this end is in the handshake"],["ISS","5000","Initial send sequence number"],["SND.UNA","5001","Oldest byte sent but not yet acknowledged"],["SND.NXT","5001","Next sequence number to send"],["IRS","1000","Initial sequence number received from the peer"],["RCV.NXT","1001","Next byte expected from the peer"]]}],"notes":["This is why the handshake needs three segments: each side must send its number and see it acknowledged, and the middle segment combines one acknowledgment with one number."]},{"from":"client","to":"server","kind":"data","label":"PSH, ACK seq=1001 len=517","title":"First data: the sequence numbers start counting bytes","desc":"The client sends 517 bytes (here a TLS ClientHello, since this is port 443). The segment starts at sequence 1001, the number after the SYN. The server will acknowledge 1001 + 517 = 1518.","fields":[{"group":"IPv4 header","color":"blue","rows":[["Source address","192.0.2.10"],["Destination address","198.51.100.20"],["Protocol","6 (TCP)"]]},{"group":"TCP header","color":"green","rows":[["Source port","51514"],["Destination port","443"],["Sequence number","1001","Number of the first byte this segment occupies in the sender's stream."],["Acknowledgment number","5001","The next byte this side expects from the other."],["Flags","PSH, ACK"],["Window","65535","How many bytes the sender of this segment is willing to receive."],["Options","none"],["Payload","517 bytes"]],"changed":["Flags","Payload"]}],"state":[{"title":"Client connection record (TCB)","head":["Variable","Value","Meaning"],"rows":[["State","ESTABLISHED","Where this end is in the handshake"],["ISS","1000","Initial send sequence number"],["SND.UNA","1001","Oldest byte sent but not yet acknowledged"],["SND.NXT","1518","Next sequence number to send"],["IRS","5000","Initial sequence number received from the peer"],["RCV.NXT","5001","Next byte expected from the peer"]]}]}],"simplifications":["Sequence numbers start at 1000 and 5000 for readability. Real initial sequence numbers are 32-bit values chosen to be hard to guess.","Only one loss is shown. Real stacks keep retransmitting with a growing timeout and give up after a limit set by the operating system.","The IP header is reduced to three fields, and link-layer framing, routing hops and NAT are left out.","Options are listed but not explained in depth: window scaling, selective acknowledgment and timestamps each have their own rules.","SYN flood defences (SYN cookies, backlog limits), simultaneous open and TCP Fast Open are not covered.","Connection teardown (FIN) is not part of this explainer."],"sources":[{"title":"RFC 9293: Transmission Control Protocol (TCP), sections 3.4, 3.5 and 3.10.7","url":"https://www.rfc-editor.org/rfc/rfc9293","note":"Sequence numbers, the three-way handshake, the state machine and the acceptable-ACK test."},{"title":"RFC 6298: Computing TCP's Retransmission Timer","url":"https://www.rfc-editor.org/rfc/rfc6298","note":"Initial timeout of 1 second and doubling on each expiry."},{"title":"RFC 6528: Defending against Sequence Number Attacks","url":"https://www.rfc-editor.org/rfc/rfc6528","note":"How initial sequence numbers are generated."},{"title":"RFC 7323: TCP Extensions for High Performance","url":"https://www.rfc-editor.org/rfc/rfc7323","note":"Window scale option, sent only in SYN segments."},{"title":"Linux kernel documentation: ip-sysctl, tcp_syn_retries","url":"https://docs.kernel.org/networking/ip-sysctl.html","note":"Default of 6 SYN retransmissions."}]}
+</script>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- small helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const SVG = 'http://www.w3.org/2000/svg';
+const svg = (name, attrs, parent) => {
+  const n = document.createElementNS(SVG, name);
+  for (const k in attrs) if (attrs[k] != null) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const h = (name, cls, text, parent) => {
+  const n = document.createElement(name);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const COLORS = ['blue', 'green', 'amber', 'purple', 'pink', 'orange', 'cyan', 'gray'];
+const cvar = (name) => `var(--${COLORS.includes(name) ? name : 'gray'})`;
+
+let spec;
+try {
+  spec = JSON.parse($('spec').textContent);
+  if (!spec || !Array.isArray(spec.actors) || !Array.isArray(spec.steps) || !spec.steps.length) throw new Error('The spec needs "actors" and at least one entry in "steps".');
+} catch (e) {
+  const app = $('app');
+  app.textContent = '';
+  h('div', 'error', 'This file does not contain a valid spec.\n' + e.message + '\nRun scripts/validate.mjs on the spec to see what is wrong.', app);
+  return;
+}
+
+const actors = spec.actors;
+const steps = spec.steps;
+const byId = Object.fromEntries(actors.map((a) => [a.id, a]));
+const kinds = spec.kinds || {};
+const kindOf = (s) => kinds[s.kind] || { label: s.kind || 'Step', color: 'gray' };
+const colorOf = (s) => (s.fail ? 'var(--red)' : cvar(kindOf(s).color));
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- scene geometry (keep in sync with scripts/validate.mjs) ---------- */
+const U = 64, SKEW = 0.38, DEPTH = 0.56;
+const P = (x, y, z = 0) => [U * (x - SKEW * y), U * (DEPTH * y - z)];
+const SHAPES = {
+  box: { w: 1.25, d: 1.0, h: 0.75 },
+  tower: { w: 0.95, d: 0.9, h: 1.25 },
+  tile: { w: 1.45, d: 1.05, h: 0.2 },
+  cylinder: { w: 1.15, d: 1.0, h: 0.9 },
+  person: { w: 0.7, d: 0.6, h: 1.25 },
+  cloud: { w: 1.7, d: 1.0, h: 0.95 },
+  screen: { w: 1.3, d: 0.95, h: 0.95 },
+  page: { w: 0.95, d: 0.3, h: 1.15 },
+};
+const shapeOf = (a) => SHAPES[a.shape] || SHAPES.box;
+const pts = (list) => list.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+
+function prism(g, x, y, w, d, ht, z0 = 0) {
+  const x0 = x - w / 2, x1 = x + w / 2, y0 = y - d / 2, y1 = y + d / 2, z1 = z0 + ht;
+  svg('polygon', { class: 'f side', points: pts([P(x1, y1, z0), P(x1, y0, z0), P(x1, y0, z1), P(x1, y1, z1)]) }, g);
+  svg('polygon', { class: 'f top', points: pts([P(x0, y1, z1), P(x1, y1, z1), P(x1, y0, z1), P(x0, y0, z1)]) }, g);
+  svg('polygon', { class: 'f front', points: pts([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)]) }, g);
+}
+function frontLine(g, x, y, w, d, z, inset = 0.15) {
+  const a = P(x - w / 2 + inset, y + d / 2, z), b = P(x + w / 2 - inset, y + d / 2, z);
+  svg('line', { class: 'd', x1: a[0], y1: a[1], x2: b[0], y2: b[1] }, g);
+}
+function drawShape(g, a) {
+  const s = shapeOf(a), [x, y] = a.pos, kind = SHAPES[a.shape] ? a.shape : 'box';
+  const base = P(x, y, 0), rx = (s.w / 2) * U, ry = rx * 0.4;
+  svg('ellipse', { class: 'shadow', cx: base[0] + 4, cy: base[1] + 5, rx: rx * 1.15, ry: ry * 1.1 }, g);
+  if (kind === 'box') {
+    prism(g, x, y, s.w, s.d, s.h);
+  } else if (kind === 'tower') {
+    prism(g, x, y, s.w, s.d, s.h);
+    for (const z of [0.95, 0.7, 0.45]) frontLine(g, x, y, s.w, s.d, z);
+  } else if (kind === 'tile') {
+    prism(g, x, y, s.w, s.d, s.h);
+  } else if (kind === 'screen') {
+    prism(g, x, y + 0.12, s.w, 0.7, 0.1);
+    prism(g, x, y - 0.3, s.w, 0.1, s.h - 0.1, 0.1);
+    frontLine(g, x, y - 0.3, s.w, 0.1, 0.72, 0.22);
+    frontLine(g, x, y - 0.3, s.w, 0.1, 0.52, 0.22);
+  } else if (kind === 'page') {
+    prism(g, x, y, s.w, s.d, s.h);
+    for (const z of [0.9, 0.7, 0.5, 0.3]) frontLine(g, x, y, s.w, s.d, z, 0.18);
+  } else if (kind === 'cylinder') {
+    const top = P(x, y, s.h);
+    svg('path', { class: 'f front', d: `M${base[0] - rx},${top[1]} V${base[1]} A${rx},${ry} 0 0 0 ${base[0] + rx},${base[1]} V${top[1]} Z` }, g);
+    svg('ellipse', { class: 'f top', cx: top[0], cy: top[1], rx, ry }, g);
+    const mid = P(x, y, s.h * 0.5);
+    svg('path', { class: 'd', d: `M${mid[0] - rx},${mid[1]} A${rx},${ry} 0 0 0 ${mid[0] + rx},${mid[1]}` }, g);
+  } else if (kind === 'person') {
+    const sh = P(x, y, 0.75), head = P(x, y, 1.02);
+    svg('path', { class: 'f front', d: `M${base[0] - rx},${base[1]} L${sh[0] - rx * 0.75},${sh[1]} A${rx * 0.75},${rx * 0.6} 0 0 1 ${sh[0] + rx * 0.75},${sh[1]} L${base[0] + rx},${base[1]} A${rx},${ry} 0 0 1 ${base[0] - rx},${base[1]} Z` }, g);
+    svg('circle', { class: 'f top', cx: head[0], cy: head[1], r: 0.23 * U }, g);
+  } else if (kind === 'cloud') {
+    const c = P(x, y, 0.42), k = U / 64;
+    svg('path', {
+      class: 'f top',
+      transform: `translate(${c[0]},${c[1]}) scale(${k})`,
+      d: 'M-38,22 a19,19 0 0 1 -4,-37 a25,25 0 0 1 45,-11 a21,21 0 0 1 36,18 a15.5,15.5 0 0 1 -5,30 z',
+    }, g);
+  }
+}
+/** point a token rests at above an actor, and where its label starts below it */
+const topOf = (a) => { const p = P(a.pos[0], a.pos[1], shapeOf(a).h); return [p[0], p[1] - 24]; };
+const labelAt = (a) => { const p = P(a.pos[0], a.pos[1] + shapeOf(a).d / 2, 0); return [p[0], p[1] + 17]; };
+const labelWidth = (a) => Math.max((a.label || '').length * 7.3, (a.sub || '').length * 6.5, 30);
+
+/* ---------- build the scene ---------- */
+const wrap = $('sceneWrap');
+const root = svg('svg', { role: 'img', 'aria-label': 'Scene: ' + actors.map((a) => a.label).join(', ') }, wrap);
+const gZones = svg('g', {}, root), gLinks = svg('g', {}, root), gPath = svg('g', {}, root);
+const gActors = svg('g', {}, root), gLabels = svg('g', {}, root), gToken = svg('g', {}, root);
+
+let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+const grow = (x, y) => { bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x); by1 = Math.max(by1, y); };
+
+for (const z of spec.zones || []) {
+  const c = [P(z.x, z.y), P(z.x + z.w, z.y), P(z.x + z.w, z.y + z.h), P(z.x, z.y + z.h)];
+  c.forEach((p) => grow(p[0], p[1]));
+  const g = svg('g', { style: '--c:' + cvar(z.color) }, gZones);
+  svg('polygon', { class: 'zone', points: pts(c) }, g);
+  // the label hangs just outside the front edge, where nothing inside the zone can cover it
+  const t = svg('text', { class: 'zone-label', x: c[3][0] + 4, y: c[3][1] + 16 }, g);
+  t.textContent = z.label;
+  grow(c[3][0] + 4 + (z.label || '').length * 6.8, c[3][1] + 22);
+}
+const linkKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+const linkSet = new Set();
+for (const [a, b] of spec.links || []) {
+  if (!byId[a] || !byId[b]) continue;
+  linkSet.add(linkKey(a, b));
+  const p = P(...byId[a].pos), q = P(...byId[b].pos);
+  svg('line', { class: 'link', x1: p[0], y1: p[1], x2: q[0], y2: q[1] }, gLinks);
+}
+const actorEl = {}, labelEl = {};
+for (const a of [...actors].sort((m, n) => m.pos[1] - n.pos[1] || m.pos[0] - n.pos[0])) {
+  const g = svg('g', { class: 'actor' }, gActors);
+  drawShape(g, a);
+  actorEl[a.id] = g;
+  const [lx, ly] = labelAt(a), lw = labelWidth(a) / 2 + 6, s = shapeOf(a);
+  const lg = svg('g', { class: 'alabel' }, gLabels);
+  svg('text', { class: 'name', x: lx, y: ly }, lg).textContent = a.label;
+  let y = ly;
+  if (a.sub) { y += 14; svg('text', { class: 'sub', x: lx, y }, lg).textContent = a.sub; }
+  const bg = svg('rect', { class: 'st-bg', rx: 8, height: 16, y: y + 6 }, lg);
+  const st = svg('text', { class: 'st', x: lx, y: y + 18 }, lg);
+  labelEl[a.id] = { g: lg, bg, st, x: lx };
+  const top = P(a.pos[0], a.pos[1] - s.d / 2, s.h);
+  grow(lx - lw, top[1] - 70); grow(lx + lw, y + 30);
+  grow(P(a.pos[0] + s.w / 2, a.pos[1] - s.d / 2)[0] + 8, top[1]);
+  grow(P(a.pos[0] - s.w / 2, a.pos[1] + s.d / 2)[0] - 8, top[1]);
+}
+const PADX = 44, PADY = 14;
+bx0 -= PADX; bx1 += PADX; by0 -= PADY; by1 += PADY;
+const BW = bx1 - bx0, BH = by1 - by0;
+root.setAttribute('viewBox', `${bx0.toFixed(0)} ${by0.toFixed(0)} ${BW.toFixed(0)} ${BH.toFixed(0)}`);
+
+let scale = 1;
+const MIN_SCALE = 0.8;
+function fit() {
+  const w = wrap.clientWidth;
+  const maxH = Math.max(260, Math.min(window.innerHeight * 0.56, 560));
+  scale = Math.min(w / BW, maxH / BH, 1.3);
+  if (scale < MIN_SCALE) scale = MIN_SCALE; // never shrink the labels below a readable size; the box scrolls instead
+  root.style.width = (BW * scale).toFixed(0) + 'px';
+  root.style.height = (BH * scale).toFixed(0) + 'px';
+  layoutTimeline();
+  paintToken();
+}
+/** When the scene is larger than its box (a phone), keep the token in the middle: the view follows the action. */
+function follow(x, y) {
+  if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.scrollLeft = (x - bx0) * scale - wrap.clientWidth / 2;
+  if (wrap.scrollHeight > wrap.clientHeight + 1) wrap.scrollTop = (y - by0) * scale - wrap.clientHeight / 2;
+}
+
+/* ---------- token ---------- */
+const tok = svg('g', { class: 'token' }, gToken);
+const ring = svg('ellipse', { class: 'ring', rx: 0, ry: 0 }, tok);
+const tokMove = svg('g', {}, tok);
+const tokBody = svg('g', {}, tokMove);
+const tokRect = svg('rect', { class: 'body', x: -11, y: -8, width: 22, height: 16, rx: 4 }, tokBody);
+const tokDia = svg('polygon', { class: 'body', points: '0,-11 11,0 0,11 -11,0' }, tokBody);
+svg('line', { class: 'cross', x1: -4, y1: -4, x2: 4, y2: 4 }, tokBody);
+svg('line', { class: 'cross', x1: 4, y1: -4, x2: -4, y2: 4 }, tokBody);
+const pillBg = svg('rect', { class: 'pill-bg', height: 20, y: -39, rx: 10 }, tokMove);
+const pill = svg('text', { class: 'pill', y: -25 }, tokMove);
+
+/* ---------- playback state ---------- */
+const SPEEDS = [0.5, 1, 2, 3];
+let cur = 0, t = 0, arrived = false, playing = false, speed = 1, raf = 0, timer = 0, last = 0;
+const N = steps.length;
+
+function statusAt(i, incl) {
+  const out = {};
+  for (let k = 0; k <= i; k++) {
+    if (k === i && !incl) break;
+    Object.assign(out, steps[k].status || {});
+  }
+  return out;
+}
+function paintStatus() {
+  const now = statusAt(cur, arrived), fresh = arrived ? steps[cur].status || {} : {};
+  for (const a of actors) {
+    const L = labelEl[a.id], v = now[a.id];
+    L.st.textContent = v || '';
+    L.bg.style.display = v ? '' : 'none';
+    if (v) {
+      const w = Math.max(v.length * 6.5 + 16, 30);
+      L.bg.setAttribute('x', L.x - w / 2); L.bg.setAttribute('width', w);
+    }
+    L.g.classList.toggle('flash', a.id in fresh);
+  }
+}
+function paintActors() {
+  const s = steps[cur];
+  for (const a of actors) {
+    const on = s.to ? (arrived ? (s.fail ? false : a.id === s.to) : a.id === s.from) : a.id === s.from;
+    const g = actorEl[a.id];
+    g.classList.toggle('on', on);
+    g.style.setProperty('--c', on ? colorOf(s) : a.color ? cvar(a.color) : 'var(--wire)');
+  }
+}
+const ease = (e) => (e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2);
+function paintToken() {
+  const s = steps[cur], a = topOf(byId[s.from]);
+  let x, y, failed = false, rot = 0, sc = 1;
+  if (!s.to) {
+    x = a[0]; y = a[1] - Math.sin(t * Math.PI * 3) * 5 * (1 - t);
+    rot = t * 180; sc = 0.75 + 0.25 * Math.sin(Math.min(t * 1.4, 1) * Math.PI / 2);
+    failed = !!s.fail && t >= 0.6;
+    const base = P(...byId[s.from].pos), r = shapeOf(byId[s.from]).w * U * (0.6 + t * 0.5);
+    ring.setAttribute('cx', base[0]); ring.setAttribute('cy', base[1]);
+    ring.setAttribute('rx', r); ring.setAttribute('ry', r * 0.42);
+    ring.style.opacity = t >= 1 ? 0 : (1 - t) * 0.9;
+  } else {
+    ring.style.opacity = 0;
+    const b = topOf(byId[s.to]), stop = s.fail ? 0.56 : 1;
+    const e = Math.min(t / 0.82, 1), p = ease(e) * stop;
+    const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const fall = s.fail && t > 0.82 ? (t - 0.82) / 0.18 : 0;
+    x = a[0] + (b[0] - a[0]) * p;
+    y = a[1] + (b[1] - a[1]) * p - Math.sin(p * Math.PI) * Math.min(34, dist * 0.14) + fall * 20;
+    failed = !!s.fail && e >= 1;
+  }
+  tok.classList.toggle('failed', failed);
+  tokMove.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+  tokBody.setAttribute('transform', `rotate(${rot.toFixed(0)}) scale(${sc.toFixed(2)})`);
+  follow(x, y + 30);
+}
+function frame(now) {
+  const s = steps[cur], dur = (s.to ? 1250 : 850) / speed;
+  t = Math.min(1, t + Math.min(now - last, 50) / dur);
+  last = now;
+  paintToken();
+  if (t >= 1) return arrive();
+  raf = requestAnimationFrame(frame);
+}
+function arrive() {
+  t = 1; arrived = true;
+  paintToken(); paintActors(); paintStatus();
+  if (playing) {
+    timer = setTimeout(() => {
+      if (!playing) return;
+      if (cur >= N - 1) { playing = false; paintControls(); } else go(cur + 1);
+    }, 1300 / speed);
+  }
+}
+function go(i, opts = {}) {
+  cancelAnimationFrame(raf); clearTimeout(timer);
+  cur = Math.max(0, Math.min(N - 1, i));
+  t = 0; arrived = false;
+  const s = steps[cur];
+  tok.style.setProperty('--c', cvar(kindOf(s).color));
+  tokRect.style.display = s.to ? '' : 'none';
+  tokDia.style.display = s.to ? 'none' : '';
+  pill.textContent = s.label;
+  const w = Math.max(pill.getComputedTextLength ? pill.getComputedTextLength() : 0, s.label.length * 6.2) + 18;
+  pillBg.setAttribute('x', -w / 2); pillBg.setAttribute('width', w);
+  // highlight the path this hop takes
+  gPath.textContent = '';
+  if (s.to) {
+    const p = P(...byId[s.from].pos), q = P(...byId[s.to].pos);
+    const end = s.fail ? [p[0] + (q[0] - p[0]) * 0.56, p[1] + (q[1] - p[1]) * 0.56] : q;
+    svg('line', {
+      class: 'path' + (linkSet.has(linkKey(s.from, s.to)) ? '' : ' adhoc'), style: '--c:' + colorOf(s),
+      x1: p[0], y1: p[1], x2: end[0], y2: end[1],
+    }, gPath);
+  }
+  paintActors(); paintStatus(); paintInspector(); paintTimeline(); paintControls();
+  if (!opts.silent) history.replaceState(null, '', '#step=' + (cur + 1));
+  if (reduced || opts.instant) return arrive();
+  paintToken();
+  last = performance.now();
+  raf = requestAnimationFrame(frame);
+}
+function toggle() {
+  if (playing) { playing = false; clearTimeout(timer); paintControls(); return; }
+  playing = true;
+  paintControls();
+  if (cur >= N - 1 && arrived) go(0);
+  else if (arrived) go(cur + 1); // otherwise the hop in flight finishes and playback carries on from there
+}
+
+/* ---------- header, legend, controls ---------- */
+document.title = spec.title || 'Visual explainer';
+$('title').textContent = spec.title || '';
+$('summary').textContent = spec.summary || '';
+const usedKinds = [...new Set(steps.map((s) => s.kind))];
+for (const k of usedKinds) {
+  const c = h('span', 'chip', (kinds[k] || { label: k }).label, $('legend'));
+  c.style.setProperty('--c', cvar((kinds[k] || {}).color));
+}
+if (steps.some((s) => s.fail)) h('span', 'chip', '✕ Fails or is refused', $('legend')).style.setProperty('--c', 'var(--red)');
+
+const dots = steps.map((s, i) => {
+  const d = h('button', 'dot' + (s.fail ? ' fail' : ''), null, $('dots'));
+  d.type = 'button'; d.title = `${i + 1}. ${s.title}`; d.setAttribute('aria-label', `Go to step ${i + 1}: ${s.title}`);
+  d.style.setProperty('--c', colorOf(s));
+  d.onclick = () => go(i);
+  return d;
+});
+const speedBtns = SPEEDS.map((v) => {
+  const b = h('button', '', v + '×', $('speeds'));
+  b.type = 'button'; b.setAttribute('aria-label', `Speed ${v}x`);
+  b.onclick = () => { speed = v; paintControls(); };
+  return b;
+});
+const ICON_PLAY = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2v12l9-6z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h4v12H3zM9 2h4v12H9z"/></svg>';
+function paintControls() {
+  const s = steps[cur], k = kindOf(s);
+  $('play').innerHTML = (playing ? ICON_PAUSE : ICON_PLAY) + '<span></span>';
+  $('play').lastChild.textContent = playing ? 'Pause' : cur >= N - 1 && arrived ? 'Replay' : 'Play';
+  $('prev').disabled = $('first').disabled = cur === 0;
+  $('next').disabled = cur === N - 1;
+  dots.forEach((d, i) => { d.classList.toggle('cur', i === cur); d.classList.toggle('past', i < cur); });
+  speedBtns.forEach((b, i) => { b.classList.toggle('on', SPEEDS[i] === speed); b.setAttribute('aria-pressed', SPEEDS[i] === speed); });
+  $('capN').textContent = `${cur + 1} / ${N}`;
+  $('capKind').textContent = s.fail ? '✕ ' + k.label : k.label;
+  $('capKind').style.setProperty('--c', colorOf(s));
+  $('capTitle').textContent = s.title;
+}
+$('first').onclick = () => go(0);
+$('prev').onclick = () => go(cur - 1);
+$('next').onclick = () => go(cur + 1);
+$('play').onclick = toggle;
+$('theme').onclick = flipTheme;
+function flipTheme() {
+  const el = document.documentElement;
+  const dark = el.dataset.theme ? el.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  el.dataset.theme = dark ? 'light' : 'dark';
+}
+addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest && e.target.closest('input,textarea,select,a')) return;
+  const k = e.key;
+  if (k === ' ') { e.preventDefault(); toggle(); }
+  else if (k === 'ArrowRight') { e.preventDefault(); go(cur + 1); }
+  else if (k === 'ArrowLeft') { e.preventDefault(); go(cur - 1); }
+  else if (k === 'Home') { e.preventDefault(); go(0); }
+  else if (k === 'End') { e.preventDefault(); go(N - 1); }
+  else if (k === '.' || k === ',') { const i = SPEEDS.indexOf(speed) + (k === '.' ? 1 : -1); speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, i))]; paintControls(); }
+  else if (k === 't' || k === 'T') flipTheme();
+});
+
+/* ---------- timeline ---------- */
+const seqInner = $('seqInner');
+const n = actors.length;
+seqInner.style.minWidth = n * 132 + 'px';
+const seqHead = h('div', 'seq-head', null, seqInner);
+actors.forEach((a) => { h('div', '', a.label, seqHead).title = a.label + (a.sub ? ' · ' + a.sub : ''); });
+const seqRows = h('div', 'seq-rows', null, seqInner);
+const col = (id) => ((actors.findIndex((a) => a.id === id) + 0.5) / n) * 100;
+actors.forEach((a) => { h('div', 'life', null, seqRows).style.left = col(a.id) + '%'; });
+const rows = steps.map((s, i) => {
+  const r = h('button', 'row' + (s.fail ? ' fail' : ''), null, seqRows);
+  r.type = 'button';
+  r.style.setProperty('--c', cvar(kindOf(s).color));
+  r.setAttribute('aria-label', `Step ${i + 1}: ${s.title}`);
+  h('span', 'num', String(i + 1), r);
+  const x1 = col(s.from);
+  if (s.to) {
+    const x2 = col(s.to), full = Math.abs(x2 - x1), len = s.fail ? full * 0.56 : full, right = x2 > x1;
+    const ar = h('span', 'arrow ' + (right ? 'r' : 'l'), null, r);
+    ar.style.left = (right ? x1 : x1 - len) + '%';
+    ar.style.width = len + '%';
+    const lab = h('span', 'lab', s.label, ar);
+    if (s.fail) lab.style.left = (right ? 50 / 0.56 : 100 - 50 / 0.56) + '%';
+  } else {
+    const box = h('span', 'self', null, r);
+    box.dataset.col = x1;
+    box.title = s.label;
+    h('span', 'lab', s.label, box);
+  }
+  r.onclick = () => go(i);
+  return r;
+});
+/** centre each "inside" box on its lifeline, pulled inward when it would run off either edge */
+function layoutTimeline() {
+  const W = seqRows.clientWidth;
+  for (const box of seqRows.querySelectorAll('.self')) {
+    const w = box.offsetWidth, c = (box.dataset.col / 100) * W;
+    box.style.left = Math.max(26, Math.min(W - w - 6, c - w / 2)).toFixed(0) + 'px';
+  }
+}
+function paintTimeline() {
+  rows.forEach((r, i) => { r.classList.toggle('cur', i === cur); r.classList.toggle('past', i < cur); });
+  const box = $('seqScroll'), r = rows[cur];
+  const top = r.offsetTop + seqHead.offsetHeight;
+  if (top < box.scrollTop + seqHead.offsetHeight || top + r.offsetHeight > box.scrollTop + box.clientHeight) {
+    box.scrollTop = top - box.clientHeight / 2;
+  }
+  // on a narrow screen the columns scroll sideways: bring this step's actors into view
+  const s = steps[cur], W = seqRows.clientWidth;
+  const mid = ((col(s.from) + col(s.to || s.from)) / 200) * W;
+  box.scrollLeft = Math.max(0, mid - box.clientWidth / 2);
+}
+
+/* ---------- inspector ---------- */
+/** the same table one or more steps earlier, so cells that differ can be marked */
+function previousTable(i, title) {
+  for (let k = i - 1; k >= 0; k--) {
+    const tb = (steps[k].state || []).find((x) => x.title === title);
+    if (tb) return tb;
+  }
+  return null;
+}
+function paintInspector() {
+  const s = steps[cur], k = kindOf(s), box = $('insp');
+  box.textContent = '';
+  box.style.setProperty('--c', colorOf(s));
+  const top = h('div', 'insp-top', null, box);
+  h('span', 'chip', (s.to ? '' : 'Inside · ') + k.label, top);
+  h('span', 'route', `Step ${cur + 1} of ${N}`, top);
+  h('h2', '', s.title, box);
+  const route = h('div', 'route', null, box);
+  h('b', '', byId[s.from].label, route);
+  if (s.to) { h('span', 'ar', '→', route); h('b', '', byId[s.to].label, route); }
+  else h('span', '', ' (nothing is sent)', route);
+  if (s.fail) {
+    const f = h('div', 'failbox', null, box);
+    h('b', '', s.to ? 'Never arrives' : 'Refused here', f);
+    h('span', '', s.fail === true ? 'This step fails.' : s.fail, f);
+  }
+  h('p', 'desc', s.desc, box);
+
+  if (s.fields && s.fields.length) {
+    const sec = h('section', '', null, box);
+    h('h3', '', 'What is in play', sec);
+    for (const g of s.fields) {
+      const ge = h('div', 'group', null, sec);
+      ge.style.setProperty('--c', cvar(g.color || k.color));
+      h('div', 'group-name', g.group, ge);
+      for (const [name, value, note] of g.rows || []) {
+        const ch = (g.changed || []).includes(name);
+        const f = h('div', 'field' + (ch ? ' changed' : ''), null, ge);
+        h('span', 'k', name, f);
+        const v = h('span', 'v', value, f);
+        if (ch) h('span', 'tag', 'changed', v);
+        if (note) h('span', 'note', note, f);
+      }
+    }
+  }
+  if (s.payload) {
+    const sec = h('section', '', null, box);
+    h('h3', '', 'Payload', sec);
+    h('pre', 'payload', String(s.payload).replace(/\r\n/g, '\n'), sec);
+  }
+  if (s.state && s.state.length) {
+    const sec = h('section', '', null, box);
+    h('h3', '', 'State', sec);
+    let any = false;
+    for (const tb of s.state) {
+      const prev = previousTable(cur, tb.title);
+      const w = h('div', 'tbl-wrap', null, sec), table = h('table', '', null, w);
+      h('caption', '', tb.title, table);
+      const hr = h('tr', '', null, h('thead', '', null, table));
+      (tb.head || []).forEach((x) => h('th', '', x, hr));
+      const body = h('tbody', '', null, table);
+      (tb.rows || []).forEach((r, ri) => {
+        const tr = h('tr', (tb.mark || []).includes(ri) ? 'mark' : '', null, body);
+        r.forEach((v, ci) => {
+          const was = prev && prev.rows && prev.rows[ri] ? prev.rows[ri][ci] : undefined;
+          const ch = prev && was !== v;
+          if (ch) any = true;
+          const td = h('td', ch ? 'changed' : '', v, tr);
+          if (ch && was !== undefined && was !== '') td.title = 'Was: ' + was;
+        });
+      });
+    }
+    if (any) { const key = h('p', 'tbl-key', null, sec); h('i', '', null, key); key.appendChild(document.createTextNode('changed since this table was last shown')); }
+  }
+  if (s.notes && s.notes.length) {
+    const sec = h('section', '', null, box);
+    h('h3', '', 'Good to know', sec);
+    const ul = h('ul', 'notes', null, sec);
+    s.notes.forEach((x) => h('li', '', x, ul));
+  }
+  box.scrollTop = 0;
+}
+
+/* ---------- about: simplifications and sources ---------- */
+const about = $('about');
+const a1 = h('div', '', null, about);
+h('h2', '', 'What this leaves out', a1);
+const ul1 = h('ul', '', null, a1);
+(spec.simplifications || []).forEach((x) => h('li', '', x, ul1));
+const a2 = h('div', '', null, about);
+h('h2', '', 'Sources', a2);
+const ul2 = h('ul', '', null, a2);
+(spec.sources || []).forEach((src) => {
+  const li = h('li', '', null, ul2);
+  if (/^https?:\/\//i.test(src.url || '')) {
+    const a = h('a', '', src.title || src.url, li);
+    a.href = src.url; a.rel = 'noopener noreferrer'; a.target = '_blank';
+  } else li.textContent = src.title || '';
+  if (src.note) li.appendChild(document.createTextNode(' — ' + src.note));
+});
+h('div', 'foot', 'A teaching model, not an emulator. Made with the visualize-anything skill.', about);
+
+/* ---------- start ---------- */
+const m = /step=(\d+)/.exec(location.hash);
+addEventListener('resize', fit);
+addEventListener('hashchange', () => { const x = /step=(\d+)/.exec(location.hash); if (x && +x[1] - 1 !== cur) go(+x[1] - 1, { silent: true }); });
+fit();
+go(m ? +m[1] - 1 : 0, { silent: true, instant: /static/.test(location.hash) });
+window.__player = { go, toggle, get step() { return cur; }, get arrived() { return arrived; }, steps: N };
+})();
+</script>
+</body>
+</html>
