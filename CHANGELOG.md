@@ -4,6 +4,26 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 Version numbers cover three things that can break separately: the spec format (`version` in a spec), the player, and the skill's instructions. A change that makes existing specs invalid is a major version.
 
+## [0.2.0] - 2026-11-15
+
+A backward-compatible feature release: every spec that was valid stays valid and opens looking as it did.
+
+### Added
+
+- Two views of one scene in the player: the 3D view and a flat 2D plan seen from above, in which actors are tiles with an icon for their shape, zones are rectangles, links are lines and each label is placed under, beside or above its tile, wherever it covers least.
+- A 2D / 3D switch in the play bar and the `V` key. The turn between the views is animated, can be reversed half way, and is instant when the system asks for reduced motion. Tokens, failure marks, status chips and labels work in both views, also while a token is moving.
+- The reader's choice of view is remembered per explainer in the browser, where storage is available. `#view=2d` or `#view=3d` in the address opens a view directly.
+- An optional top-level `view` in the spec (`"2d"` or `"3d"`, default `"3d"`) that sets the view an explainer opens in. The OAuth example now opens in the 2D plan.
+- The validator accepts `view` and warns about overlapping tiles, labels and zone names in the 2D plan as well as in the 3D view.
+- `references/method.md`: when the plan teaches better (topology, containment) and when 3D does (layers, height that means something).
+- An eval case, `default-view`, with a fixture, and a `spec_view` check for the runner.
+- `scripts/check-docs.mjs` checks that the geometry block shared by the player and the validator is identical in both.
+
+### Changed
+
+- The scene geometry (projection, shape sizes and the plan's label placement) is now one block of code kept identical in `assets/player.html` and `scripts/validate.mjs`.
+- `SKILL.md`, `references/spec.md`, the README and the screenshots describe and show both views.
+
 ## [0.1.0] - 2026-11-11
 
 First release.
