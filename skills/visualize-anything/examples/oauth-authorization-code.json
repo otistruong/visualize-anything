@@ -3,6 +3,7 @@
   "id": "oauth-authorization-code",
   "title": "OAuth 2.0 authorization code flow with PKCE",
   "summary": "A web app gets permission to read a user's calendar without ever seeing the user's password. Follow the browser redirects, the server-to-server token request, and what happens when a stolen code is replayed.",
+  "view": "2d",
   "kinds": {
     "front": {
       "label": "Through the browser",

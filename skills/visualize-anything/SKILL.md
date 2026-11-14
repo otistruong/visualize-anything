@@ -44,6 +44,7 @@ Rules that matter most:
 - Put the detail a reader would want to inspect into `fields` (what the message or item contains, with `changed` naming the fields that differ from the hop before) and `state` (tables an actor keeps). Use realistic values, not placeholders.
 - Give at least one step a `fail` string that says why it is lost, refused or blocked.
 - Fill in `simplifications` (what the model leaves out) and `sources` (where the facts come from). Both are required.
+- Set `"view": "2d"` when the lesson is topology or containment (who connects to whom, what is inside which boundary); leave it out for the 3D view. `references/method.md` says more.
 - Aim for 6 to 20 steps and 2 to 8 actors. If you need more, split the subject into two specs.
 
 ### 3. Validate
@@ -52,7 +53,7 @@ Rules that matter most:
 node scripts/validate.mjs <subject-id>.json
 ```
 
-Fix every error. Read every warning and fix it unless you have a reason not to: warnings are about overlapping labels, missing failure cases and text that is too long to read on screen. Run it again until it prints `OK`.
+Fix every error. Read every warning and fix it unless you have a reason not to: warnings are about overlapping labels (in either view), missing failure cases and text that is too long to read on screen. Run it again until it prints `OK`.
 
 ### 4. Build
 
@@ -66,7 +67,7 @@ If Node.js is not available, copy `assets/player.html` to the output path and re
 
 ### 5. Check the result
 
-- If you can open a browser or take a screenshot, load the HTML file, step through it, and look: labels must not overlap, the token must end on the right actor, the failure step must look like a failure. Fix the spec and rebuild if not.
+- If you can open a browser or take a screenshot, load the HTML file, step through it in both views (press `V`), and look: labels must not overlap, the token must end on the right actor, the failure step must look like a failure. Fix the spec and rebuild if not. Adding `#step=4&view=2d` to the file's address opens step 4 in the 2D plan.
 - If you cannot, re-read the spec once from the top as a reader would, checking that each step follows from the one before and that numbers carried across steps (sequence numbers, ids, counters, table rows) agree.
 
 Never edit the built HTML by hand. Change the spec and build again.
@@ -89,8 +90,8 @@ Edit the spec JSON, then validate and build again. The spec is the source; the H
 
 You do not need to build any of this; knowing it helps you write a spec that uses it.
 
-- A 2.5D scene: actors as simple solids, zones as outlined areas on the ground, links as dashed lines.
-- One token per step that travels from `from` to `to` with the step's `label`, or pulses above an actor for an inside step. A failed hop stops part-way, turns red and is marked with a cross.
+- One scene in two views that the reader switches between with the 2D / 3D buttons or the `V` key: a 3D view (actors as simple solids, zones as outlined areas on the ground, links as dashed lines) and a flat 2D plan seen from above (actors as tiles with an icon, zones as rectangles, labels placed clear of each other). The top-level `view` sets which one it opens in; the default is 3D. The turn between them is animated, and the browser remembers the reader's choice per explainer.
+- One token per step that travels from `from` to `to` with the step's `label`, or pulses on an actor for an inside step. A failed hop stops part-way, turns red and is marked with a cross. Both look the same in either view.
 - A status chip under each actor (`status` in a step) that persists until changed, for things like connection state or the contents of a slot.
 - A sequence timeline of all steps. Click a row to jump to it.
 - An inspector with the title, description, field groups with changed fields highlighted, a raw payload, state tables with cells that changed since the table was last shown highlighted automatically, and notes.

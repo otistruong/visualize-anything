@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Visual explainer</title>
 <!--
-  visualize-anything player 0.1.0
+  visualize-anything player 0.2.0
   One file, no dependencies, no network requests. The subject is the JSON in
   the <script id="spec"> block near the end of this file; everything else is
   the fixed player. Format: references/spec.md. MIT licence.
@@ -92,6 +92,8 @@ button { font: inherit; color: inherit; }
 .speeds { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .speeds button { border: 0; background: var(--panel); height: 30px; padding: 0 7px; cursor: pointer; font-size: 12px; }
 .speeds button.on { background: var(--fg); color: var(--panel); }
+.speeds button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.views button { min-width: 34px; font-weight: 600; }
 .hint { color: var(--muted); font-size: 11.5px; padding: 0 12px 8px; }
 kbd {
   font: 11px ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px;
@@ -111,6 +113,8 @@ kbd {
 .actor .f.side { fill: color-mix(in srgb, var(--c) 36%, var(--panel)); }
 .actor .d { stroke: var(--c); stroke-width: 1.2; fill: none; opacity: .75; }
 .actor .shadow { fill: #000; opacity: .08; }
+.actor .g { stroke: var(--c); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.actor .g.fill { fill: color-mix(in srgb, var(--c) 30%, var(--panel)); }
 .actor.on .f { stroke-width: 2.2; }
 .actor.on .f.top { fill: color-mix(in srgb, var(--c) 42%, var(--panel)); }
 .actor.on .f.front { fill: color-mix(in srgb, var(--c) 26%, var(--panel)); }
@@ -260,9 +264,12 @@ ul.notes li { margin-bottom: 4px; }
       <button class="btn primary" id="play" type="button" title="Play / pause (Space)"></button>
       <button class="btn" id="next" type="button" aria-label="Next step" title="Next step (Right arrow)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2v12l9-6z"/></svg></button>
       <div class="dots" id="dots"></div>
+      <div class="speeds views" id="views" role="group" aria-label="View">
+        <button type="button" data-view="2d" title="Flat plan, seen from above (V)">2D</button><button type="button" data-view="3d" title="3D view (V)">3D</button>
+      </div>
       <div class="speeds" id="speeds" role="group" aria-label="Playback speed"></div>
     </div>
-    <div class="hint"><kbd>Space</kbd> play or pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> step &nbsp; <kbd>Home</kbd> <kbd>End</kbd> first or last &nbsp; <kbd>,</kbd> <kbd>.</kbd> slower or faster &nbsp; <kbd>T</kbd> theme</div>
+    <div class="hint"><kbd>Space</kbd> play or pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> step &nbsp; <kbd>Home</kbd> <kbd>End</kbd> first or last &nbsp; <kbd>,</kbd> <kbd>.</kbd> slower or faster &nbsp; <kbd>V</kbd> 2D or 3D &nbsp; <kbd>T</kbd> theme</div>
   </div>
 
   <aside class="insp card" id="insp" aria-live="polite" aria-label="Step details"></aside>
@@ -321,21 +328,113 @@ const kindOf = (s) => kinds[s.kind] || { label: s.kind || 'Step', color: 'gray' 
 const colorOf = (s) => (s.fail ? 'var(--red)' : cvar(kindOf(s).color));
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ---------- scene geometry (keep in sync with scripts/validate.mjs) ---------- */
-const U = 64, SKEW = 0.38, DEPTH = 0.56;
-const P = (x, y, z = 0) => [U * (x - SKEW * y), U * (DEPTH * y - z)];
+/* ---------- scene geometry ---------- */
+/* ---------- shared geometry: start ----------
+   This block is identical in assets/player.html and scripts/validate.mjs; scripts/check-docs.mjs fails if they differ. */
+const U = 64, SKEW = 0.38, DEPTH = 0.56, PLAN_Y = 0.75;
+/**
+ * Where a point on the ground at [x, y], raised by z, lands on screen. e is how far the view has turned:
+ * 0 is the 3D view (from the front and above), 1 the plan (straight from above, where height is not seen).
+ */
+const projector = (e) => {
+  const sk = SKEW * (1 - e), dp = DEPTH + (PLAN_Y - DEPTH) * e, hz = 1 - e;
+  return (x, y, z = 0) => [U * (x - sk * y), U * (dp * y - hz * z)];
+};
+/** w, d, h: the solid in the 3D view. pw, pd: the flat tile that stands for it in the plan. All in grid units. */
 const SHAPES = {
-  box: { w: 1.25, d: 1.0, h: 0.75 },
-  tower: { w: 0.95, d: 0.9, h: 1.25 },
-  tile: { w: 1.45, d: 1.05, h: 0.2 },
-  cylinder: { w: 1.15, d: 1.0, h: 0.9 },
-  person: { w: 0.7, d: 0.6, h: 1.25 },
-  cloud: { w: 1.7, d: 1.0, h: 0.95 },
-  screen: { w: 1.3, d: 0.95, h: 0.95 },
-  page: { w: 0.95, d: 0.3, h: 1.15 },
+  box: { w: 1.25, d: 1.0, h: 0.75, pw: 1.2, pd: 0.9 },
+  tower: { w: 0.95, d: 0.9, h: 1.25, pw: 1.0, pd: 0.9 },
+  tile: { w: 1.45, d: 1.05, h: 0.2, pw: 1.45, pd: 0.8 },
+  cylinder: { w: 1.15, d: 1.0, h: 0.9, pw: 1.1, pd: 0.9 },
+  person: { w: 0.7, d: 0.6, h: 1.25, pw: 0.9, pd: 0.9 },
+  cloud: { w: 1.7, d: 1.0, h: 0.95, pw: 1.5, pd: 0.9 },
+  screen: { w: 1.3, d: 0.95, h: 0.95, pw: 1.2, pd: 0.9 },
+  page: { w: 0.95, d: 0.3, h: 1.15, pw: 0.9, pd: 0.9 },
 };
 const shapeOf = (a) => SHAPES[a.shape] || SHAPES.box;
+/** The block of text under an actor in the plan (name, sub, status chip), in pixels. */
+const labelSize = (a, statusLen) => ({
+  w: Math.max(String(a.label || '').length * 7.3, String(a.sub || '').length * 6.5, statusLen ? statusLen * 6.5 + 16 : 0, 30) + 8,
+  h: 16 + (a.sub ? 14 : 0) + (statusLen ? 22 : 0),
+});
+const overlapArea = (p, q) => Math.max(0, Math.min(p.x1, q.x1) - Math.max(p.x0, q.x0)) * Math.max(0, Math.min(p.y1, q.y1) - Math.max(p.y0, q.y0));
+/**
+ * The plan view: where each actor's tile sits and where its label goes. A label goes under its tile when that is
+ * clear, otherwise to the right, the left or above, whichever covers least of the other tiles, labels, zone names
+ * and links. Returns the tiles, the labels (top centre and size) and every overlap that could not be avoided.
+ */
+function planLayout(spec) {
+  const P1 = projector(1);
+  const isPos = (p) => Array.isArray(p) && p.length === 2 && p.every((v) => typeof v === 'number' && Number.isFinite(v));
+  const actors = (Array.isArray(spec.actors) ? spec.actors : []).filter((a) => a && typeof a === 'object' && isPos(a.pos));
+  const statusLen = {};
+  for (const s of Array.isArray(spec.steps) ? spec.steps : []) {
+    if (s && s.status && typeof s.status === 'object') {
+      for (const k of Object.keys(s.status)) if (typeof s.status[k] === 'string') statusLen[k] = Math.max(statusLen[k] || 0, s.status[k].length);
+    }
+  }
+  const tiles = {};
+  for (const a of actors) {
+    const s = shapeOf(a), c = P1(a.pos[0], a.pos[1]), w = s.pw * U, h = s.pd * U;
+    tiles[a.id] = { cx: c[0], cy: c[1], x0: c[0] - w / 2, x1: c[0] + w / 2, y0: c[1] - h / 2, y1: c[1] + h / 2 };
+  }
+  const zoneNames = [];
+  for (const z of Array.isArray(spec.zones) ? spec.zones : []) {
+    if (!z || ![z.x, z.y, z.w, z.h].every((v) => typeof v === 'number' && Number.isFinite(v))) continue;
+    const c = P1(z.x, z.y + z.h);
+    zoneNames.push({ label: String(z.label || ''), x0: c[0] + 4, x1: c[0] + 4 + String(z.label || '').length * 6.8, y0: c[1] + 4, y1: c[1] + 20 });
+  }
+  const segs = [];
+  for (const l of Array.isArray(spec.links) ? spec.links : []) if (Array.isArray(l) && tiles[l[0]] && tiles[l[1]] && l[0] !== l[1]) segs.push([tiles[l[0]], tiles[l[1]]]);
+  const crossings = (r) => {
+    let n = 0;
+    for (const [p, q] of segs) {
+      for (let i = 1; i < 24; i++) {
+        const x = p.cx + ((q.cx - p.cx) * i) / 24, y = p.cy + ((q.cy - p.cy) * i) / 24;
+        if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) n++;
+      }
+    }
+    return n;
+  };
+  const labels = {}, placed = [];
+  for (const a of actors) {
+    const t = tiles[a.id], size = labelSize(a, statusLen[a.id] || 0), w = size.w, h = size.h;
+    const options = [
+      { side: 'below', cx: t.cx, top: t.y1 + 4 },
+      { side: 'right', cx: t.x1 + 8 + w / 2, top: t.cy - h / 2 },
+      { side: 'left', cx: t.x0 - 8 - w / 2, top: t.cy - h / 2 },
+      { side: 'above', cx: t.cx, top: t.y0 - 4 - h },
+    ];
+    let best = null;
+    options.forEach((o, rank) => {
+      const r = { x0: o.cx - w / 2, x1: o.cx + w / 2, y0: o.top, y1: o.top + h };
+      let cost = rank * 40 + crossings(r) * 60;
+      for (const id of Object.keys(tiles)) cost += overlapArea(r, tiles[id]) * 3;
+      for (const q of placed) cost += overlapArea(r, q) * 2;
+      for (const q of zoneNames) cost += overlapArea(r, q) * 2;
+      if (!best || cost < best.cost) best = { side: o.side, cx: o.cx, top: o.top, w, h, cost, rect: r };
+    });
+    labels[a.id] = best;
+    placed.push(best.rect);
+  }
+  const overlaps = [];
+  actors.forEach((a, i) => {
+    const r = labels[a.id].rect;
+    actors.forEach((b, j) => {
+      if (i === j) return;
+      if (j > i && overlapArea(tiles[a.id], tiles[b.id]) > 0) overlaps.push({ a: a.id, b: b.id, what: 'tiles' });
+      if (j > i && overlapArea(r, labels[b.id].rect) > 0) overlaps.push({ a: a.id, b: b.id, what: 'labels' });
+      if (overlapArea(r, tiles[b.id]) > 0) overlaps.push({ a: a.id, b: b.id, what: 'label on tile' });
+    });
+    for (const q of zoneNames) if (overlapArea(r, q) > 0 || overlapArea(tiles[a.id], q) > 0) overlaps.push({ a: a.id, zone: q.label, what: 'zone name' });
+  });
+  return { tiles, labels, overlaps };
+}
+/* ---------- shared geometry: end ---------- */
+/** The projection in use. It changes while the view turns between 3D and the plan. */
+let P = projector(0);
 const pts = (list) => list.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 function prism(g, x, y, w, d, ht, z0 = 0) {
   const x0 = x - w / 2, x1 = x + w / 2, y0 = y - d / 2, y1 = y + d / 2, z1 = z0 + ht;
@@ -347,6 +446,7 @@ function frontLine(g, x, y, w, d, z, inset = 0.15) {
   const a = P(x - w / 2 + inset, y + d / 2, z), b = P(x + w / 2 - inset, y + d / 2, z);
   svg('line', { class: 'd', x1: a[0], y1: a[1], x2: b[0], y2: b[1] }, g);
 }
+/** The solid an actor is drawn as in the 3D view. */
 function drawShape(g, a) {
   const s = shapeOf(a), [x, y] = a.pos, kind = SHAPES[a.shape] ? a.shape : 'box';
   const base = P(x, y, 0), rx = (s.w / 2) * U, ry = rx * 0.4;
@@ -385,78 +485,227 @@ function drawShape(g, a) {
     }, g);
   }
 }
-/** point a token rests at above an actor, and where its label starts below it */
-const topOf = (a) => { const p = P(a.pos[0], a.pos[1], shapeOf(a).h); return [p[0], p[1] - 24]; };
-const labelAt = (a) => { const p = P(a.pos[0], a.pos[1] + shapeOf(a).d / 2, 0); return [p[0], p[1] + 17]; };
-const labelWidth = (a) => Math.max((a.label || '').length * 7.3, (a.sub || '').length * 6.5, 30);
+/** The flat tile an actor is drawn as in the plan: a rounded square with an icon for its shape, centred on 0,0. */
+function drawIcon(g, a) {
+  const s = shapeOf(a), kind = SHAPES[a.shape] ? a.shape : 'box', W = s.pw * U, H = s.pd * U, k = H * 0.62;
+  const n = (v) => (v * k).toFixed(1);
+  svg('rect', { class: 'f top', x: -W / 2, y: -H / 2, width: W, height: H, rx: 9 }, g);
+  const line = (d, fill) => svg('path', { class: 'g' + (fill ? ' fill' : ''), d }, g);
+  if (kind === 'box') {
+    line(`M0,${n(-0.42)} L${n(0.36)},${n(-0.21)} V${n(0.21)} L0,${n(0.42)} L${n(-0.36)},${n(0.21)} V${n(-0.21)} Z`, true);
+    line(`M${n(-0.36)},${n(-0.21)} L0,0 L${n(0.36)},${n(-0.21)} M0,0 V${n(0.42)}`);
+  } else if (kind === 'tower') {
+    for (const y of [-0.4, -0.1, 0.2]) {
+      line(`M${n(-0.5)},${n(y)} h${n(1)} v${n(0.22)} h${n(-1)} Z`, true);
+      svg('circle', { class: 'g', cx: n(0.32), cy: n(y + 0.11), r: 1.4 }, g);
+    }
+  } else if (kind === 'tile') {
+    svg('rect', { class: 'g', x: -W / 2 + 6, y: -H / 2 + 6, width: W - 12, height: H - 12, rx: 5, opacity: 0.5 }, g);
+  } else if (kind === 'cylinder') {
+    line(`M${n(-0.4)},${n(-0.3)} V${n(0.3)} A${n(0.4)},${n(0.14)} 0 0 0 ${n(0.4)},${n(0.3)} V${n(-0.3)}`, true);
+    svg('ellipse', { class: 'g fill', cx: 0, cy: n(-0.3), rx: n(0.4), ry: n(0.14) }, g);
+    line(`M${n(-0.4)},0 A${n(0.4)},${n(0.14)} 0 0 0 ${n(0.4)},0`);
+  } else if (kind === 'person') {
+    svg('circle', { class: 'g fill', cx: 0, cy: n(-0.2), r: n(0.17) }, g);
+    line(`M${n(-0.36)},${n(0.42)} A${n(0.36)},${n(0.36)} 0 0 1 ${n(0.36)},${n(0.42)} Z`, true);
+  } else if (kind === 'cloud') {
+    const c = k / 80;
+    svg('path', {
+      class: 'g fill', transform: `translate(${(6 * c).toFixed(1)},${(9 * c).toFixed(1)}) scale(${c.toFixed(3)})`, 'vector-effect': 'non-scaling-stroke',
+      d: 'M-38,22 a19,19 0 0 1 -4,-37 a25,25 0 0 1 45,-11 a21,21 0 0 1 36,18 a15.5,15.5 0 0 1 -5,30 z',
+    }, g);
+  } else if (kind === 'screen') {
+    line(`M${n(-0.42)},${n(-0.36)} h${n(0.84)} v${n(0.56)} h${n(-0.84)} Z`, true);
+    line(`M${n(-0.56)},${n(0.3)} h${n(1.12)} l${n(-0.08)},${n(0.1)} h${n(-0.96)} Z`, true);
+  } else if (kind === 'page') {
+    line(`M${n(-0.3)},${n(-0.44)} H${n(0.12)} L${n(0.3)},${n(-0.26)} V${n(0.44)} H${n(-0.3)} Z`, true);
+    line(`M${n(0.12)},${n(-0.44)} V${n(-0.26)} H${n(0.3)}`);
+    for (const y of [-0.06, 0.1, 0.26]) line(`M${n(-0.17)},${n(y)} h${n(0.34)}`);
+  }
+}
 
 /* ---------- build the scene ---------- */
 const wrap = $('sceneWrap');
-const root = svg('svg', { role: 'img', 'aria-label': 'Scene: ' + actors.map((a) => a.label).join(', ') }, wrap);
+const root = svg('svg', { role: 'img' }, wrap);
 const gZones = svg('g', {}, root), gLinks = svg('g', {}, root), gPath = svg('g', {}, root);
 const gActors = svg('g', {}, root), gLabels = svg('g', {}, root), gToken = svg('g', {}, root);
+const P0 = projector(0), P1 = projector(1), plan = planLayout(spec);
 
-let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
-const grow = (x, y) => { bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x); by1 = Math.max(by1, y); };
-
-for (const z of spec.zones || []) {
-  const c = [P(z.x, z.y), P(z.x + z.w, z.y), P(z.x + z.w, z.y + z.h), P(z.x, z.y + z.h)];
-  c.forEach((p) => grow(p[0], p[1]));
+const zoneEls = (spec.zones || []).map((z) => {
   const g = svg('g', { style: '--c:' + cvar(z.color) }, gZones);
-  svg('polygon', { class: 'zone', points: pts(c) }, g);
+  const poly = svg('polygon', { class: 'zone' }, g);
   // the label hangs just outside the front edge, where nothing inside the zone can cover it
-  const t = svg('text', { class: 'zone-label', x: c[3][0] + 4, y: c[3][1] + 16 }, g);
-  t.textContent = z.label;
-  grow(c[3][0] + 4 + (z.label || '').length * 6.8, c[3][1] + 22);
-}
+  const text = svg('text', { class: 'zone-label' }, g);
+  text.textContent = z.label;
+  return { z, poly, text };
+});
 const linkKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
 const linkSet = new Set();
+const linkEls = [];
 for (const [a, b] of spec.links || []) {
   if (!byId[a] || !byId[b]) continue;
   linkSet.add(linkKey(a, b));
-  const p = P(...byId[a].pos), q = P(...byId[b].pos);
-  svg('line', { class: 'link', x1: p[0], y1: p[1], x2: q[0], y2: q[1] }, gLinks);
+  linkEls.push({ a: byId[a], b: byId[b], el: svg('line', { class: 'link' }, gLinks) });
 }
 const actorEl = {}, labelEl = {};
 for (const a of [...actors].sort((m, n) => m.pos[1] - n.pos[1] || m.pos[0] - n.pos[0])) {
   const g = svg('g', { class: 'actor' }, gActors);
-  drawShape(g, a);
-  actorEl[a.id] = g;
-  const [lx, ly] = labelAt(a), lw = labelWidth(a) / 2 + 6, s = shapeOf(a);
-  const lg = svg('g', { class: 'alabel' }, gLabels);
-  svg('text', { class: 'name', x: lx, y: ly }, lg).textContent = a.label;
-  let y = ly;
-  if (a.sub) { y += 14; svg('text', { class: 'sub', x: lx, y }, lg).textContent = a.sub; }
-  const bg = svg('rect', { class: 'st-bg', rx: 8, height: 16, y: y + 6 }, lg);
-  const st = svg('text', { class: 'st', x: lx, y: y + 18 }, lg);
-  labelEl[a.id] = { g: lg, bg, st, x: lx };
-  const top = P(a.pos[0], a.pos[1] - s.d / 2, s.h);
-  grow(lx - lw, top[1] - 70); grow(lx + lw, y + 30);
-  grow(P(a.pos[0] + s.w / 2, a.pos[1] - s.d / 2)[0] + 8, top[1]);
-  grow(P(a.pos[0] - s.w / 2, a.pos[1] + s.d / 2)[0] - 8, top[1]);
+  const solid = svg('g', {}, g), icon = svg('g', {}, g);
+  drawIcon(icon, a);
+  actorEl[a.id] = { g, solid, icon };
 }
-const PADX = 44, PADY = 14;
-bx0 -= PADX; bx1 += PADX; by0 -= PADY; by1 += PADY;
-const BW = bx1 - bx0, BH = by1 - by0;
-root.setAttribute('viewBox', `${bx0.toFixed(0)} ${by0.toFixed(0)} ${BW.toFixed(0)} ${BH.toFixed(0)}`);
+for (const a of actors) {
+  // text is laid out from the top centre of the block, then the block is moved into place for the view
+  const lg = svg('g', { class: 'alabel' }, gLabels);
+  svg('text', { class: 'name', x: 0, y: 12 }, lg).textContent = a.label;
+  let y = 12;
+  if (a.sub) { y += 14; svg('text', { class: 'sub', x: 0, y }, lg).textContent = a.sub; }
+  const bg = svg('rect', { class: 'st-bg', rx: 8, height: 16, y: y + 6 }, lg);
+  const st = svg('text', { class: 'st', x: 0, y: y + 18 }, lg);
+  const q = P0(a.pos[0], a.pos[1] + shapeOf(a).d / 2), L = plan.labels[a.id];
+  labelEl[a.id] = { g: lg, bg, st, x: 0, at3d: [q[0], q[1] + 5], atPlan: [L.cx, L.top] };
+}
 
-let scale = 1;
+/** The box the whole scene needs in one view (e = 0 or 1), as [x0, y0, x1, y1]. Every position in between is a straight blend, so blending the two boxes holds it. */
+const PADX = 44, PADY = 14;
+function extent(e) {
+  const Pe = projector(e);
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+  const grow = (x, y) => { bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x); by1 = Math.max(by1, y); };
+  for (const z of spec.zones || []) {
+    const c = [Pe(z.x, z.y), Pe(z.x + z.w, z.y), Pe(z.x + z.w, z.y + z.h), Pe(z.x, z.y + z.h)];
+    c.forEach((p) => grow(p[0], p[1]));
+    grow(c[3][0] + 4 + (z.label || '').length * 6.8, c[3][1] + 22);
+  }
+  for (const a of actors) {
+    const s = shapeOf(a);
+    if (e === 0) {
+      const [lx, ly] = labelEl[a.id].at3d, lw = Math.max((a.label || '').length * 7.3, (a.sub || '').length * 6.5, 30) / 2 + 6;
+      const top = Pe(a.pos[0], a.pos[1] - s.d / 2, s.h);
+      grow(lx - lw, top[1] - 70); grow(lx + lw, ly + 12 + (a.sub ? 14 : 0) + 30);
+      grow(Pe(a.pos[0] + s.w / 2, a.pos[1] - s.d / 2)[0] + 8, top[1]);
+      grow(Pe(a.pos[0] - s.w / 2, a.pos[1] + s.d / 2)[0] - 8, top[1]);
+    } else {
+      const t = plan.tiles[a.id], L = plan.labels[a.id];
+      grow(t.x0 - 8, t.cy - 60); grow(t.x1 + 8, t.y1 + 4);
+      grow(L.cx - L.w / 2 - 6, L.top - 4); grow(L.cx + L.w / 2 + 6, L.top + L.h + 8);
+    }
+  }
+  return [bx0 - PADX, by0 - PADY, bx1 + PADX, by1 + PADY];
+}
+const EXTENT = [extent(0), extent(1)];
+
+/* ---------- the two views ---------- */
+// vk is how far the view has turned: 0 is 3D, 1 the plan. Everything in the scene is drawn from it.
+const VIEW_KEY = 'visualize-anything:view:' + (spec.id || location.pathname);
+const hashView = /(?:^#|&)view=(2d|3d)\b/.exec(location.hash);
+let storedView = null;
+try { storedView = localStorage.getItem(VIEW_KEY); } catch (e) { /* storage blocked: use the spec's default */ }
+let view = hashView ? hashView[1] : storedView === '2d' || storedView === '3d' ? storedView : spec.view === '2d' ? '2d' : '3d';
+let vk = view === '2d' ? 1 : 0, vAnim = null, vRaf = 0;
+const VIEW_MS = 650;
+const easeView = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+
+let bx0 = 0, by0 = 0, BW = 1, BH = 1, scale = 1;
 const MIN_SCALE = 0.8;
-function fit() {
+/** Size the scene to its box for the current view. */
+function sizeScene() {
+  const b = EXTENT[0].map((v, i) => v + (EXTENT[1][i] - v) * vk);
+  bx0 = b[0]; by0 = b[1]; BW = b[2] - b[0]; BH = b[3] - b[1];
+  root.setAttribute('viewBox', `${bx0.toFixed(0)} ${by0.toFixed(0)} ${BW.toFixed(0)} ${BH.toFixed(0)}`);
   const w = wrap.clientWidth;
   const maxH = Math.max(260, Math.min(window.innerHeight * 0.56, 560));
   scale = Math.min(w / BW, maxH / BH, 1.3);
   if (scale < MIN_SCALE) scale = MIN_SCALE; // never shrink the labels below a readable size; the box scrolls instead
   root.style.width = (BW * scale).toFixed(0) + 'px';
   root.style.height = (BH * scale).toFixed(0) + 'px';
-  layoutTimeline();
+}
+/** Draw everything that depends on the view: zones, links, actors, labels, the highlighted path and the token. */
+function drawScene() {
+  P = projector(vk);
+  for (const { z, poly, text } of zoneEls) {
+    const c = [P(z.x, z.y), P(z.x + z.w, z.y), P(z.x + z.w, z.y + z.h), P(z.x, z.y + z.h)];
+    poly.setAttribute('points', pts(c));
+    text.setAttribute('x', (c[3][0] + 4).toFixed(1)); text.setAttribute('y', (c[3][1] + 16).toFixed(1));
+  }
+  for (const { a, b, el } of linkEls) {
+    const p = P(...a.pos), q = P(...b.pos);
+    el.setAttribute('x1', p[0]); el.setAttribute('y1', p[1]); el.setAttribute('x2', q[0]); el.setAttribute('y2', q[1]);
+  }
+  // the solids flatten as the view turns and give way to the plan's tiles part of the way through
+  const solidOp = 1 - smooth(0.3, 0.75, vk), iconOp = smooth(0.4, 0.9, vk);
+  for (const a of actors) {
+    const A = actorEl[a.id];
+    A.solid.textContent = '';
+    if (solidOp > 0.001) drawShape(A.solid, a);
+    A.solid.style.opacity = solidOp < 0.999 ? solidOp.toFixed(3) : '';
+    A.icon.style.display = iconOp > 0.001 ? '' : 'none';
+    A.icon.style.opacity = iconOp < 0.999 ? iconOp.toFixed(3) : '';
+    const c = P(a.pos[0], a.pos[1]);
+    A.icon.setAttribute('transform', `translate(${c[0].toFixed(1)},${c[1].toFixed(1)}) scale(${(0.6 + 0.4 * vk).toFixed(3)})`);
+    const L = labelEl[a.id];
+    const x = L.at3d[0] + (L.atPlan[0] - L.at3d[0]) * vk, y = L.at3d[1] + (L.atPlan[1] - L.at3d[1]) * vk;
+    L.g.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+  }
+  root.setAttribute('aria-label', (vk >= 0.5 ? 'Scene, flat plan: ' : 'Scene, 3D view: ') + actors.map((a) => a.label).join(', '));
+  sizeScene();
+  drawPath();
   paintToken();
+}
+function paintViewButtons() {
+  for (const b of $('views').children) {
+    const on = b.dataset.view === view;
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+  }
+}
+function viewFrame(now) {
+  const a = vAnim;
+  if (!a) return;
+  const x = Math.min(1, (now - a.t0) / a.ms);
+  vk = a.from + (a.to - a.from) * easeView(x);
+  if (x >= 1) { vk = a.to; vAnim = null; }
+  drawScene();
+  if (vAnim) vRaf = requestAnimationFrame(viewFrame);
+}
+/** Turn to a view. A turn already under way reverses from wherever it has got to. */
+function setView(v, opts = {}) {
+  if (v !== '2d' && v !== '3d') return;
+  view = v;
+  paintViewButtons();
+  if (!opts.keep) { try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* not remembered this time */ } }
+  const to = v === '2d' ? 1 : 0;
+  cancelAnimationFrame(vRaf); vAnim = null;
+  if (vk === to) return drawScene();
+  if (opts.instant || matchMedia('(prefers-reduced-motion: reduce)').matches) { vk = to; return drawScene(); }
+  vAnim = { from: vk, to, t0: performance.now(), ms: VIEW_MS * Math.abs(to - vk) };
+  vRaf = requestAnimationFrame(viewFrame);
+}
+const toggleView = () => setView(view === '2d' ? '3d' : '2d');
+for (const b of $('views').children) b.onclick = () => setView(b.dataset.view);
+
+function fit() {
+  drawScene();
+  layoutTimeline();
 }
 /** When the scene is larger than its box (a phone), keep the token in the middle: the view follows the action. */
 function follow(x, y) {
   if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.scrollLeft = (x - bx0) * scale - wrap.clientWidth / 2;
   if (wrap.scrollHeight > wrap.clientHeight + 1) wrap.scrollTop = (y - by0) * scale - wrap.clientHeight / 2;
 }
+/** Light up the link this step travels along (or a temporary path where there is no link). */
+function drawPath() {
+  gPath.textContent = '';
+  const s = steps[cur];
+  if (!s || !s.to) return;
+  const p = P(...byId[s.from].pos), q = P(...byId[s.to].pos);
+  const end = s.fail ? [p[0] + (q[0] - p[0]) * 0.56, p[1] + (q[1] - p[1]) * 0.56] : q;
+  svg('line', {
+    class: 'path' + (linkSet.has(linkKey(s.from, s.to)) ? '' : ' adhoc'), style: '--c:' + colorOf(s),
+    x1: p[0], y1: p[1], x2: end[0], y2: end[1],
+  }, gPath);
+}
+/** Where a token rests at an actor: above the solid in 3D, on the middle of its tile in the plan. */
+const topOf = (a) => { const p = P(a.pos[0], a.pos[1], shapeOf(a).h); return [p[0], p[1] - 24 * (1 - vk)]; };
 
 /* ---------- token ---------- */
 const tok = svg('g', { class: 'token' }, gToken);
@@ -500,7 +749,7 @@ function paintActors() {
   const s = steps[cur];
   for (const a of actors) {
     const on = s.to ? (arrived ? (s.fail ? false : a.id === s.to) : a.id === s.from) : a.id === s.from;
-    const g = actorEl[a.id];
+    const g = actorEl[a.id].g;
     g.classList.toggle('on', on);
     g.style.setProperty('--c', on ? colorOf(s) : a.color ? cvar(a.color) : 'var(--wire)');
   }
@@ -513,9 +762,9 @@ function paintToken() {
     x = a[0]; y = a[1] - Math.sin(t * Math.PI * 3) * 5 * (1 - t);
     rot = t * 180; sc = 0.75 + 0.25 * Math.sin(Math.min(t * 1.4, 1) * Math.PI / 2);
     failed = !!s.fail && t >= 0.6;
-    const base = P(...byId[s.from].pos), r = shapeOf(byId[s.from]).w * U * (0.6 + t * 0.5);
+    const sh = shapeOf(byId[s.from]), base = P(...byId[s.from].pos), r = (sh.w + (sh.pw - sh.w) * vk) * U * (0.6 + t * 0.5);
     ring.setAttribute('cx', base[0]); ring.setAttribute('cy', base[1]);
-    ring.setAttribute('rx', r); ring.setAttribute('ry', r * 0.42);
+    ring.setAttribute('rx', r); ring.setAttribute('ry', r * (0.42 + 0.58 * vk));
     ring.style.opacity = t >= 1 ? 0 : (1 - t) * 0.9;
   } else {
     ring.style.opacity = 0;
@@ -523,12 +772,16 @@ function paintToken() {
     const e = Math.min(t / 0.82, 1), p = ease(e) * stop;
     const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const fall = s.fail && t > 0.82 ? (t - 0.82) / 0.18 : 0;
+    // the hop arcs over the ground in 3D; from above, height cannot be seen, so in the plan it runs along the link
     x = a[0] + (b[0] - a[0]) * p;
-    y = a[1] + (b[1] - a[1]) * p - Math.sin(p * Math.PI) * Math.min(34, dist * 0.14) + fall * 20;
+    y = a[1] + (b[1] - a[1]) * p + (fall * 20 - Math.sin(p * Math.PI) * Math.min(34, dist * 0.14)) * (1 - vk);
     failed = !!s.fail && e >= 1;
   }
   tok.classList.toggle('failed', failed);
   tokMove.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+  // in the plan the token sits on the tile, so its label is lifted clear of the tile's top edge
+  const lift = 12 * vk;
+  pillBg.setAttribute('y', (-39 - lift).toFixed(1)); pill.setAttribute('y', (-25 - lift).toFixed(1));
   tokBody.setAttribute('transform', `rotate(${rot.toFixed(0)}) scale(${sc.toFixed(2)})`);
   follow(x, y + 30);
 }
@@ -561,16 +814,7 @@ function go(i, opts = {}) {
   pill.textContent = s.label;
   const w = Math.max(pill.getComputedTextLength ? pill.getComputedTextLength() : 0, s.label.length * 6.2) + 18;
   pillBg.setAttribute('x', -w / 2); pillBg.setAttribute('width', w);
-  // highlight the path this hop takes
-  gPath.textContent = '';
-  if (s.to) {
-    const p = P(...byId[s.from].pos), q = P(...byId[s.to].pos);
-    const end = s.fail ? [p[0] + (q[0] - p[0]) * 0.56, p[1] + (q[1] - p[1]) * 0.56] : q;
-    svg('line', {
-      class: 'path' + (linkSet.has(linkKey(s.from, s.to)) ? '' : ' adhoc'), style: '--c:' + colorOf(s),
-      x1: p[0], y1: p[1], x2: end[0], y2: end[1],
-    }, gPath);
-  }
+  drawPath();
   paintActors(); paintStatus(); paintInspector(); paintTimeline(); paintControls();
   if (!opts.silent) history.replaceState(null, '', '#step=' + (cur + 1));
   if (reduced || opts.instant) return arrive();
@@ -646,6 +890,7 @@ addEventListener('keydown', (e) => {
   else if (k === 'End') { e.preventDefault(); go(N - 1); }
   else if (k === '.' || k === ',') { const i = SPEEDS.indexOf(speed) + (k === '.' ? 1 : -1); speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, i))]; paintControls(); }
   else if (k === 't' || k === 'T') flipTheme();
+  else if (k === 'v' || k === 'V') toggleView();
 });
 
 /* ---------- timeline ---------- */
@@ -807,9 +1052,10 @@ h('div', 'foot', 'A teaching model, not an emulator. Made with the visualize-any
 const m = /step=(\d+)/.exec(location.hash);
 addEventListener('resize', fit);
 addEventListener('hashchange', () => { const x = /step=(\d+)/.exec(location.hash); if (x && +x[1] - 1 !== cur) go(+x[1] - 1, { silent: true }); });
+paintViewButtons();
 fit();
 go(m ? +m[1] - 1 : 0, { silent: true, instant: /static/.test(location.hash) });
-window.__player = { go, toggle, get step() { return cur; }, get arrived() { return arrived; }, steps: N };
+window.__player = { go, toggle, setView, toggleView, get view() { return view; }, get k() { return vk; }, get step() { return cur; }, get arrived() { return arrived; }, steps: N };
 })();
 </script>
 </body>

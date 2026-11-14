@@ -42,6 +42,15 @@ An actor is anything that sends, receives, decides or holds state: a machine, a 
 - Use zones for boundaries that matter to the subject: a network, a trust boundary, a process, a company. A zone that explains nothing is noise.
 - Lay actors out so that the main flow reads left to right, and group by zone. See the layout section in `spec.md`.
 
+### Which view to open in
+
+The reader can switch between the flat 2D plan and the 3D view at any time; `view` only decides the first impression. Choose the one that carries the lesson:
+
+- **2D plan** when the lesson is topology or containment: who is connected to whom, what sits inside which boundary, a set of like things side by side (buckets, replicas, slots). From above nothing hides behind anything, zones are exact rectangles, and every hop runs along its link.
+- **3D** when height or depth means something: layers stacked on each other (a protocol stack, a front tier in front of a back tier), or things that should read as physical objects of different kinds. It is also the default, so leave `view` out when neither view is clearly better.
+
+Do not make the reader switch to understand a step. Both views have to tell the whole story; height and the arc of a hop are only visible in 3D, so never let them be the only place a fact appears.
+
 ## 4. Cut the path into steps
 
 One idea per step. If a description needs "and then", it is two steps.
@@ -123,5 +132,6 @@ Before you build, read the spec from the top and check:
 - [ ] Do values carried across steps agree, and does the arithmetic add up?
 - [ ] Is there at least one `fail` step with a reason, and does the model show what follows it?
 - [ ] Are example values realistic and from documentation ranges?
+- [ ] Does the explainer open in the view that shows the lesson best (2D for topology and containment, 3D for layers)?
 - [ ] Are `simplifications` specific and `sources` primary?
 - [ ] Does `node scripts/validate.mjs` print `OK` with no warnings you cannot justify?

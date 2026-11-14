@@ -23,7 +23,7 @@ npm test          # validate examples, check generated files, run offline evals
 | --- | --- | --- |
 | `SKILL.md` frontmatter or `package.json` version | `npm run sync` | the regenerated adapter files |
 | `assets/player.html` or an example spec | `npm run build` | the rebuilt `examples/*.html` |
-| the spec format | update `references/spec.md`, `scripts/validate.mjs` and the geometry constants shared by the validator and the player | all of them together |
+| the spec format | update `references/spec.md`, `scripts/validate.mjs` and, if the scene changes, the geometry block shared by the validator and the player | all of them together |
 | anything | `npm test` | |
 
 CI runs the same checks and fails if a generated file is out of date.
@@ -33,7 +33,8 @@ CI runs the same checks and fails if a generated file is out of date.
 - One file, no dependencies, no network requests, no build step. This is the point of the project.
 - Check it in a real browser: every step of every example, light and dark, a desktop width and a 390 px wide phone. Look at the result, do not only run it.
 - All text from a spec is inserted with `textContent`. Do not add a path that puts spec text into `innerHTML`.
-- The scene geometry (projection constants and shape sizes) appears in both `player.html` and `validate.mjs`. Change both.
+- The scene geometry (the projection for both views, shape and tile sizes, and the placement of labels in the 2D plan) is one block of code that appears in both `player.html` and `validate.mjs`, between the `shared geometry: start` and `shared geometry: end` comments. Change both copies the same way; `scripts/check-docs.mjs` fails if they differ.
+- Check both views (the 2D / 3D buttons or `V`), and switch while a token is moving. Adding `#step=4&view=2d` to an example's address opens it there.
 
 ## Adding or correcting an example
 

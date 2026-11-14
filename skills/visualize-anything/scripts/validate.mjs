@@ -12,19 +12,111 @@ import { pathToFileURL } from 'node:url';
 
 export const COLORS = ['blue', 'green', 'amber', 'purple', 'pink', 'orange', 'cyan', 'gray'];
 
-// Scene geometry. Keep in sync with assets/player.html.
-const U = 64, SKEW = 0.38, DEPTH = 0.56;
-const P = (x, y, z = 0) => [U * (x - SKEW * y), U * (DEPTH * y - z)];
-export const SHAPES = {
-  box: { w: 1.25, d: 1.0, h: 0.75 },
-  tower: { w: 0.95, d: 0.9, h: 1.25 },
-  tile: { w: 1.45, d: 1.05, h: 0.2 },
-  cylinder: { w: 1.15, d: 1.0, h: 0.9 },
-  person: { w: 0.7, d: 0.6, h: 1.25 },
-  cloud: { w: 1.7, d: 1.0, h: 0.95 },
-  screen: { w: 1.3, d: 0.95, h: 0.95 },
-  page: { w: 0.95, d: 0.3, h: 1.15 },
+/* ---------- shared geometry: start ----------
+   This block is identical in assets/player.html and scripts/validate.mjs; scripts/check-docs.mjs fails if they differ. */
+const U = 64, SKEW = 0.38, DEPTH = 0.56, PLAN_Y = 0.75;
+/**
+ * Where a point on the ground at [x, y], raised by z, lands on screen. e is how far the view has turned:
+ * 0 is the 3D view (from the front and above), 1 the plan (straight from above, where height is not seen).
+ */
+const projector = (e) => {
+  const sk = SKEW * (1 - e), dp = DEPTH + (PLAN_Y - DEPTH) * e, hz = 1 - e;
+  return (x, y, z = 0) => [U * (x - sk * y), U * (dp * y - hz * z)];
 };
+/** w, d, h: the solid in the 3D view. pw, pd: the flat tile that stands for it in the plan. All in grid units. */
+const SHAPES = {
+  box: { w: 1.25, d: 1.0, h: 0.75, pw: 1.2, pd: 0.9 },
+  tower: { w: 0.95, d: 0.9, h: 1.25, pw: 1.0, pd: 0.9 },
+  tile: { w: 1.45, d: 1.05, h: 0.2, pw: 1.45, pd: 0.8 },
+  cylinder: { w: 1.15, d: 1.0, h: 0.9, pw: 1.1, pd: 0.9 },
+  person: { w: 0.7, d: 0.6, h: 1.25, pw: 0.9, pd: 0.9 },
+  cloud: { w: 1.7, d: 1.0, h: 0.95, pw: 1.5, pd: 0.9 },
+  screen: { w: 1.3, d: 0.95, h: 0.95, pw: 1.2, pd: 0.9 },
+  page: { w: 0.95, d: 0.3, h: 1.15, pw: 0.9, pd: 0.9 },
+};
+const shapeOf = (a) => SHAPES[a.shape] || SHAPES.box;
+/** The block of text under an actor in the plan (name, sub, status chip), in pixels. */
+const labelSize = (a, statusLen) => ({
+  w: Math.max(String(a.label || '').length * 7.3, String(a.sub || '').length * 6.5, statusLen ? statusLen * 6.5 + 16 : 0, 30) + 8,
+  h: 16 + (a.sub ? 14 : 0) + (statusLen ? 22 : 0),
+});
+const overlapArea = (p, q) => Math.max(0, Math.min(p.x1, q.x1) - Math.max(p.x0, q.x0)) * Math.max(0, Math.min(p.y1, q.y1) - Math.max(p.y0, q.y0));
+/**
+ * The plan view: where each actor's tile sits and where its label goes. A label goes under its tile when that is
+ * clear, otherwise to the right, the left or above, whichever covers least of the other tiles, labels, zone names
+ * and links. Returns the tiles, the labels (top centre and size) and every overlap that could not be avoided.
+ */
+function planLayout(spec) {
+  const P1 = projector(1);
+  const isPos = (p) => Array.isArray(p) && p.length === 2 && p.every((v) => typeof v === 'number' && Number.isFinite(v));
+  const actors = (Array.isArray(spec.actors) ? spec.actors : []).filter((a) => a && typeof a === 'object' && isPos(a.pos));
+  const statusLen = {};
+  for (const s of Array.isArray(spec.steps) ? spec.steps : []) {
+    if (s && s.status && typeof s.status === 'object') {
+      for (const k of Object.keys(s.status)) if (typeof s.status[k] === 'string') statusLen[k] = Math.max(statusLen[k] || 0, s.status[k].length);
+    }
+  }
+  const tiles = {};
+  for (const a of actors) {
+    const s = shapeOf(a), c = P1(a.pos[0], a.pos[1]), w = s.pw * U, h = s.pd * U;
+    tiles[a.id] = { cx: c[0], cy: c[1], x0: c[0] - w / 2, x1: c[0] + w / 2, y0: c[1] - h / 2, y1: c[1] + h / 2 };
+  }
+  const zoneNames = [];
+  for (const z of Array.isArray(spec.zones) ? spec.zones : []) {
+    if (!z || ![z.x, z.y, z.w, z.h].every((v) => typeof v === 'number' && Number.isFinite(v))) continue;
+    const c = P1(z.x, z.y + z.h);
+    zoneNames.push({ label: String(z.label || ''), x0: c[0] + 4, x1: c[0] + 4 + String(z.label || '').length * 6.8, y0: c[1] + 4, y1: c[1] + 20 });
+  }
+  const segs = [];
+  for (const l of Array.isArray(spec.links) ? spec.links : []) if (Array.isArray(l) && tiles[l[0]] && tiles[l[1]] && l[0] !== l[1]) segs.push([tiles[l[0]], tiles[l[1]]]);
+  const crossings = (r) => {
+    let n = 0;
+    for (const [p, q] of segs) {
+      for (let i = 1; i < 24; i++) {
+        const x = p.cx + ((q.cx - p.cx) * i) / 24, y = p.cy + ((q.cy - p.cy) * i) / 24;
+        if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) n++;
+      }
+    }
+    return n;
+  };
+  const labels = {}, placed = [];
+  for (const a of actors) {
+    const t = tiles[a.id], size = labelSize(a, statusLen[a.id] || 0), w = size.w, h = size.h;
+    const options = [
+      { side: 'below', cx: t.cx, top: t.y1 + 4 },
+      { side: 'right', cx: t.x1 + 8 + w / 2, top: t.cy - h / 2 },
+      { side: 'left', cx: t.x0 - 8 - w / 2, top: t.cy - h / 2 },
+      { side: 'above', cx: t.cx, top: t.y0 - 4 - h },
+    ];
+    let best = null;
+    options.forEach((o, rank) => {
+      const r = { x0: o.cx - w / 2, x1: o.cx + w / 2, y0: o.top, y1: o.top + h };
+      let cost = rank * 40 + crossings(r) * 60;
+      for (const id of Object.keys(tiles)) cost += overlapArea(r, tiles[id]) * 3;
+      for (const q of placed) cost += overlapArea(r, q) * 2;
+      for (const q of zoneNames) cost += overlapArea(r, q) * 2;
+      if (!best || cost < best.cost) best = { side: o.side, cx: o.cx, top: o.top, w, h, cost, rect: r };
+    });
+    labels[a.id] = best;
+    placed.push(best.rect);
+  }
+  const overlaps = [];
+  actors.forEach((a, i) => {
+    const r = labels[a.id].rect;
+    actors.forEach((b, j) => {
+      if (i === j) return;
+      if (j > i && overlapArea(tiles[a.id], tiles[b.id]) > 0) overlaps.push({ a: a.id, b: b.id, what: 'tiles' });
+      if (j > i && overlapArea(r, labels[b.id].rect) > 0) overlaps.push({ a: a.id, b: b.id, what: 'labels' });
+      if (overlapArea(r, tiles[b.id]) > 0) overlaps.push({ a: a.id, b: b.id, what: 'label on tile' });
+    });
+    for (const q of zoneNames) if (overlapArea(r, q) > 0 || overlapArea(tiles[a.id], q) > 0) overlaps.push({ a: a.id, zone: q.label, what: 'zone name' });
+  });
+  return { tiles, labels, overlaps };
+}
+/* ---------- shared geometry: end ---------- */
+export { SHAPES, planLayout };
+export const VIEWS = ['2d', '3d'];
+const P = projector(0);
 
 const LIMITS = { actorLabel: 22, actorSub: 30, status: 26, stepLabel: 28, title: 80, desc: 480, actors: 9, stepsMin: 6, stepsMax: 26 };
 const ID = /^[a-z][a-z0-9_-]*$/;
@@ -50,11 +142,12 @@ export function validate(spec) {
   };
 
   if (!isObj(spec)) return { errors: ['spec: must be a JSON object'], warnings };
-  known(spec, 'spec', ['$schema', 'version', 'id', 'title', 'summary', 'kinds', 'actors', 'zones', 'links', 'steps', 'simplifications', 'sources']);
+  known(spec, 'spec', ['$schema', 'version', 'id', 'title', 'summary', 'view', 'kinds', 'actors', 'zones', 'links', 'steps', 'simplifications', 'sources']);
   if (spec.version !== 1) err('spec', '"version" must be the number 1');
   if (needStr(spec, 'id', 'spec') && !/^[a-z0-9][a-z0-9-]*$/.test(spec.id)) err('spec', `"id" must be lowercase letters, digits and hyphens (got "${spec.id}")`);
   needStr(spec, 'title', 'spec');
   needStr(spec, 'summary', 'spec');
+  if (spec.view !== undefined && !VIEWS.includes(spec.view)) err('spec', `"view" must be "2d" (the flat plan) or "3d" (the default), or be left out (got ${JSON.stringify(spec.view)})`);
 
   // kinds
   const kinds = isObj(spec.kinds) ? spec.kinds : {};
@@ -142,6 +235,23 @@ export function validate(spec) {
       }
     }
   });
+
+  // the plan (2D view): tiles must not overlap, and every label needs a free side
+  if (!errors.some((e) => e.startsWith('layout:'))) {
+    const zonesOk = (Array.isArray(spec.zones) ? spec.zones : []).filter((z) => isObj(z) && ['x', 'y', 'w', 'h'].every((k) => isNum(z[k])));
+    const plan = planLayout({ actors: placed, zones: zonesOk, links: Array.isArray(spec.links) ? spec.links : [], steps: Array.isArray(spec.steps) ? spec.steps.filter(isObj) : [] });
+    const seen = new Set();
+    for (const o of plan.overlaps) {
+      const msg = o.what === 'tiles'
+        ? `in the 2D plan the tiles of actors "${o.a}" and "${o.b}" overlap; move them about 1.5 apart on x or y`
+        : o.what === 'labels'
+          ? `in the 2D plan the labels of actors "${o.a}" and "${o.b}" overlap and neither has a free side; move them further apart or shorten the labels`
+          : o.what === 'label on tile'
+            ? `in the 2D plan the label of actor "${o.a}" covers actor "${o.b}"; move them further apart`
+            : `in the 2D plan the zone name "${o.zone}" collides with actor "${o.a}"; keep actors clear of the zone's front-left corner`;
+      if (!seen.has(msg)) { seen.add(msg); warn('layout', msg); }
+    }
+  }
 
   // links
   if (spec.links !== undefined && !Array.isArray(spec.links)) err('links', 'must be an array of [actorId, actorId] pairs');

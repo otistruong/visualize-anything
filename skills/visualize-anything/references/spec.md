@@ -11,7 +11,7 @@ A spec is one JSON file that describes one explainer. `scripts/validate.mjs` che
 5. `links`
 6. `steps`
 7. `simplifications` and `sources`
-8. Layout guidance
+8. Layout and the two views
 9. Length limits
 10. A complete example
 
@@ -23,6 +23,7 @@ A spec is one JSON file that describes one explainer. `scripts/validate.mjs` che
 | `id` | string | yes | Lowercase letters, digits and hyphens. Used for file names. |
 | `title` | string | yes | Page title, for example "TCP three-way handshake". |
 | `summary` | string | yes | One or two sentences: the concrete scenario and what the reader will see. |
+| `view` | string | no | The view the explainer opens in: `"3d"` (the default) or `"2d"`. See section 8. |
 | `kinds` | object | yes | The categories of step and their colours. See section 2. |
 | `actors` | array | yes | At least 2. See section 3. |
 | `zones` | array | no | Labelled areas on the ground. See section 4. |
@@ -190,9 +191,16 @@ Use it for state the reader should keep in view: a connection state, a role, the
 
 Both are shown at the bottom of the explainer.
 
-## 8. Layout guidance
+## 8. Layout and the two views
 
-The scene is a ground plane seen from the front and slightly above. `x` grows to the right. `y` grows toward the viewer: a larger `y` is nearer the front and lower on screen. One grid unit is about one actor wide.
+The scene is a ground plane. `x` grows to the right. `y` grows toward the viewer: a larger `y` is nearer the front and lower on screen. One grid unit is about one actor wide.
+
+The player shows the same scene in two views, and the reader can switch between them at any time (the 2D / 3D buttons, or the `V` key):
+
+- **3D** (`"view": "3d"`, the default): seen from the front and slightly above. Actors are solids with height; zones are outlined areas on the ground; a hop arcs over the ground.
+- **2D** (`"view": "2d"`): the flat plan, seen straight from above. Each actor is a flat tile with an icon for its shape; zones are rectangles; links are lines; a hop runs along its link. The player places each actor's label under its tile, or beside or above it when that is clearer of other tiles, labels and links.
+
+`view` only chooses where the explainer starts. Both views are drawn from the same positions, so lay the scene out once; the validator checks both. Once a reader has switched, their browser remembers their choice for that explainer. `references/method.md` says when to open in which view.
 
 - Put the main flow left to right along one row (`y` equal), in the order things first happen.
 - Keep neighbours on the same row **at least 3 apart on x**; 4.5 to 6 leaves room for long labels and for the token's label.
@@ -202,7 +210,7 @@ The scene is a ground plane seen from the front and slightly above. `x` grows to
 - A zone should start about 1.5 behind its rear-most actor and reach about 2.5 in front of its front-most actor, so the labels under the actors stay inside it. The zone's own label is drawn just outside its front-left corner; keep other actors clear of that spot.
 - Coordinates may be negative and need not start at 0. The player fits the scene to the screen. On a narrow screen the scene scrolls sideways and follows the current step.
 
-The validator reports actors that overlap (an error) and labels that would collide (warnings). Trust it, adjust positions, and run it again.
+The validator reports actors that overlap (an error) and labels that would collide (warnings), in the 3D view and in the 2D plan. Trust it, adjust positions, and run it again.
 
 ## 9. Length limits
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Keep the documentation honest: every complete spec printed in references/spec.md
-// must pass the validator with no warnings, and SKILL.md must stay short.
+// must pass the validator with no warnings, SKILL.md must stay short, and the scene
+// geometry shared by the player and the validator must be the same in both.
 
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -32,4 +33,15 @@ for (const m of skill.matchAll(/`((?:references|scripts|assets|examples)\/[^`*\s
   if (!ok) report(false, `SKILL.md points at ${m[1]}, which does not exist`);
 }
 report(true, 'every file SKILL.md points at was looked up');
+
+// The scene geometry (projection, shape sizes, the plan's label placement) is written out in both the player and the
+// validator, so that the validator warns about exactly what the player would draw. The two copies must be identical.
+const shared = (p) => {
+  const m = /\/\* -{10} shared geometry: start -{10}[\s\S]*?\/\* -{10} shared geometry: end -{10} \*\//.exec(read(p));
+  return m ? m[0] : null;
+};
+const inPlayer = shared('skills/visualize-anything/assets/player.html');
+const inValidator = shared('skills/visualize-anything/scripts/validate.mjs');
+report(!!inPlayer && !!inValidator, 'the player and the validator both contain the shared geometry block');
+report(!!inPlayer && inPlayer === inValidator, 'the shared geometry block is identical in assets/player.html and scripts/validate.mjs');
 process.exit(bad ? 1 : 0);
