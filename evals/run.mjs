@@ -180,6 +180,15 @@ const CHECKS = {
     const n = (o.spec.sources ?? []).filter((s) => /^https?:\/\//.test(s.url ?? '') || s.note).length;
     return n >= a.value ? pass(`${n} source(s)`) : fail(`${n} source(s), expected at least ${a.value}`);
   },
+  /** the spec's default view is one the player knows, and, with `value`, is that view ("3d" when left out) */
+  spec_view: (o, a) => {
+    const no = needSpec(o); if (no) return no;
+    const v = o.spec.view;
+    if (v !== undefined && v !== '2d' && v !== '3d') return fail(`"view" is ${JSON.stringify(v)}; the player knows only "2d" and "3d"`);
+    const shown = v ?? '3d';
+    if (a.value !== undefined && shown !== a.value) return fail(`opens in ${shown}${v === undefined ? ' (the default)' : ''}, expected ${a.value}`);
+    return pass(`opens in ${shown}${v === undefined ? ' (the default)' : ''}`);
+  },
   has_simplifications: (o) => { const no = needSpec(o); if (no) return no; return o.spec.simplifications?.length ? pass(`${o.spec.simplifications.length} listed`) : fail('"simplifications" is empty'); },
   spec_matches: (o, a) => { const no = needSpec(o); if (no) return no; return rx(a.pattern).test(JSON.stringify(o.spec)) ? pass() : fail(`spec text does not match /${a.pattern}/i`); },
   spec_not_matches: (o, a) => { const no = needSpec(o); if (no) return no; const m = rx(a.pattern).exec(JSON.stringify(o.spec)); return m ? fail(`spec text contains "${m[0]}"`) : pass(); },

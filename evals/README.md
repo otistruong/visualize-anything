@@ -51,7 +51,7 @@ The exit code is 0 when no case has a failure, and 1 otherwise.
 
 ### The fixtures
 
-`fixtures/tcp-handshake`, `fixtures/oauth-authorization-code` and `fixtures/hash-map-collision` are reference outputs written by hand: each points at the bundled example spec and its built HTML, and adds an `actions.json` and a `final.md` showing the behaviour the skill asks for. They are not recordings of an agent. They exist so that CI can prove the runner and the examples agree.
+`fixtures/tcp-handshake`, `fixtures/oauth-authorization-code` and `fixtures/hash-map-collision` are reference outputs written by hand: each points at the bundled example spec and its built HTML, and adds an `actions.json` and a `final.md` showing the behaviour the skill asks for. `fixtures/default-view` is the TCP example with `"view": "2d"` added and rebuilt. They are not recordings of an agent. They exist so that CI can prove the runner and the examples agree.
 
 `fixtures/bad-output` is a deliberately poor output (a hand-written renderer that loads a script from a CDN, three steps, no failure case, no sources, built before validating). Its `fixture.json` says `"expect": "fail"`, and the run is reported as OK only if the checker does flag it. Read its table to see what failures look like.
 
@@ -110,6 +110,7 @@ The Claude run allows only these tools: `Skill`, `Read`, `Write`, `Edit`, `Glob`
 | `dns-resolution` | A subject with no bundled example. The agent has to do the modelling. |
 | `broad-subject` | "Visualize Kubernetes." The agent should pick one path and say which. |
 | `edit-existing` | Changing an explainer: edit the spec and rebuild, do not patch the HTML. |
+| `default-view` | Making an explainer open in the 2D plan: set `view` in the spec and rebuild, change nothing else. |
 
 Assertions under `common` in `cases.json` apply to every case unless the case sets `"no_common": true`.
 
@@ -155,6 +156,7 @@ Available checks:
 | `min_fail_steps`, `min_inside_steps`, `min_steps_with_fields`, `min_sources` | `value` | At least that many. |
 | `marks_a_change` | | A field is marked `changed`, or a state table appears twice. |
 | `has_simplifications` | | `simplifications` is not empty. |
+| `spec_view` | `value` (optional) | `view` is left out or is `"2d"` or `"3d"`, and, with `value`, the explainer opens in that view (`"3d"` when `view` is left out). |
 | `spec_matches`, `spec_not_matches` | `pattern` | The spec's text matches, or does not match, the pattern. |
 | `final_matches` | `pattern` | The final message matches. Needs `final.md` or a transcript. |
 

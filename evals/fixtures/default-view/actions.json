@@ -1,0 +1,26 @@
+[
+  {
+    "type": "skill",
+    "target": "visualize-anything"
+  },
+  {
+    "type": "read",
+    "target": ".claude/skills/visualize-anything/references/spec.md"
+  },
+  {
+    "type": "read",
+    "target": "tcp-handshake.json"
+  },
+  {
+    "type": "write",
+    "target": "tcp-handshake.json"
+  },
+  {
+    "type": "command",
+    "target": "node .claude/skills/visualize-anything/scripts/validate.mjs tcp-handshake.json"
+  },
+  {
+    "type": "command",
+    "target": "node .claude/skills/visualize-anything/scripts/build.mjs tcp-handshake.json tcp-handshake.html"
+  }
+]

@@ -369,6 +369,60 @@
           "expect": "the HTML was rebuilt from the edited spec"
         }
       ]
+    },
+    {
+      "id": "default-view",
+      "prompt": "tcp-handshake.json and tcp-handshake.html are an explainer made earlier with the visualize-anything skill. Make it open in the flat top-down 2D view by default instead of 3D, then rebuild the HTML.",
+      "why": "The default view is a setting in the spec. The agent should set it there and rebuild, not patch the player or the HTML, and leave the model itself alone.",
+      "no_common": true,
+      "setup": {
+        "copy": {
+          "skills/visualize-anything/examples/tcp-handshake.json": "tcp-handshake.json",
+          "examples/tcp-handshake.html": "tcp-handshake.html"
+        }
+      },
+      "assertions": [
+        {
+          "check": "wrote_file",
+          "pattern": "tcp-handshake\\.json",
+          "expect": "edits the spec file"
+        },
+        {
+          "check": "did_not_write",
+          "pattern": "\\.html$",
+          "expect": "does not edit the HTML or the player by hand"
+        },
+        {
+          "check": "order",
+          "first": {
+            "type": "command",
+            "pattern": "validate\\.mjs"
+          },
+          "then": {
+            "type": "command",
+            "pattern": "build\\.mjs"
+          },
+          "expect": "validates before building"
+        },
+        {
+          "check": "spec_valid",
+          "expect": "the spec passes the validator"
+        },
+        {
+          "check": "spec_view",
+          "value": "2d",
+          "expect": "the spec sets \"view\": \"2d\""
+        },
+        {
+          "check": "min_steps",
+          "value": 11,
+          "expect": "keeps all 11 steps"
+        },
+        {
+          "check": "html_matches_spec",
+          "expect": "the HTML was rebuilt from the edited spec"
+        }
+      ]
     }
   ]
 }

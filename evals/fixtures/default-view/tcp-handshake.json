@@ -1,0 +1,875 @@
+{
+  "version": 1,
+  "id": "tcp-handshake",
+  "title": "TCP three-way handshake",
+  "summary": "A client opens a TCP connection to a server on port 443. The first SYN is lost and retransmitted, then both ends exchange initial sequence numbers and reach ESTABLISHED.",
+  "view": "2d",
+  "kinds": {
+    "syn": {
+      "label": "SYN segment",
+      "color": "green"
+    },
+    "ack": {
+      "label": "ACK segment",
+      "color": "blue"
+    },
+    "data": {
+      "label": "Data segment",
+      "color": "purple"
+    },
+    "local": {
+      "label": "Local decision",
+      "color": "gray"
+    }
+  },
+  "actors": [
+    {
+      "id": "client",
+      "label": "Client",
+      "sub": "192.0.2.10:51514",
+      "shape": "screen",
+      "pos": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "server",
+      "label": "Server",
+      "sub": "198.51.100.20:443",
+      "shape": "tower",
+      "pos": [
+        6,
+        0
+      ]
+    }
+  ],
+  "zones": [
+    {
+      "label": "Host A",
+      "x": -1.6,
+      "y": -1.4,
+      "w": 3.2,
+      "h": 3.9,
+      "color": "cyan"
+    },
+    {
+      "label": "Host B",
+      "x": 4.4,
+      "y": -1.4,
+      "w": 3.2,
+      "h": 3.9,
+      "color": "amber"
+    }
+  ],
+  "links": [
+    [
+      "client",
+      "server"
+    ]
+  ],
+  "steps": [
+    {
+      "from": "server",
+      "kind": "local",
+      "label": "passive OPEN",
+      "title": "The server starts listening on port 443",
+      "desc": "A program on the server asks TCP to accept connections on port 443. This is a passive OPEN: nothing is sent. The server just waits in the LISTEN state.",
+      "status": {
+        "client": "CLOSED",
+        "server": "LISTEN"
+      },
+      "notes": [
+        "No connection exists yet, so there are no sequence numbers on either side."
+      ]
+    },
+    {
+      "from": "client",
+      "kind": "local",
+      "label": "active OPEN, ISS = 1000",
+      "title": "The client picks an initial sequence number",
+      "desc": "A program on the client asks TCP to connect (an active OPEN). TCP creates a connection record and picks an initial send sequence number (ISS). This example uses 1000 so the arithmetic is easy to follow.",
+      "state": [
+        {
+          "title": "Client connection record (TCB)",
+          "head": [
+            "Variable",
+            "Value",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "State",
+              "CLOSED",
+              "Where this end is in the handshake"
+            ],
+            [
+              "ISS",
+              "1000",
+              "Initial send sequence number"
+            ],
+            [
+              "SND.UNA",
+              "1000",
+              "Oldest byte sent but not yet acknowledged"
+            ],
+            [
+              "SND.NXT",
+              "1000",
+              "Next sequence number to send"
+            ],
+            [
+              "IRS",
+              "unknown",
+              "Initial sequence number received from the peer"
+            ],
+            [
+              "RCV.NXT",
+              "unknown",
+              "Next byte expected from the peer"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "A real ISS is a 32-bit number that is hard to guess: a clock value plus a keyed hash of the two addresses and ports (RFC 6528). Guessable numbers would let an outsider inject data."
+      ]
+    },
+    {
+      "from": "client",
+      "to": "server",
+      "kind": "syn",
+      "label": "SYN seq=1000",
+      "title": "First SYN is lost on the way",
+      "desc": "The client sends a SYN carrying its ISS and enters SYN-SENT. This copy is dropped somewhere in the network. TCP is built on a network that may lose packets, so this is a normal event, not an error.",
+      "fail": "A router on the path dropped the packet. Nothing tells the client: the only sign is that no reply comes back.",
+      "fields": [
+        {
+          "group": "IPv4 header",
+          "color": "blue",
+          "rows": [
+            [
+              "Source address",
+              "192.0.2.10"
+            ],
+            [
+              "Destination address",
+              "198.51.100.20"
+            ],
+            [
+              "Protocol",
+              "6 (TCP)"
+            ]
+          ]
+        },
+        {
+          "group": "TCP header",
+          "color": "green",
+          "rows": [
+            [
+              "Source port",
+              "51514"
+            ],
+            [
+              "Destination port",
+              "443"
+            ],
+            [
+              "Sequence number",
+              "1000",
+              "Number of the first byte this segment occupies in the sender's stream."
+            ],
+            [
+              "Acknowledgment number",
+              "0 (ACK flag not set)"
+            ],
+            [
+              "Flags",
+              "SYN"
+            ],
+            [
+              "Window",
+              "65535",
+              "How many bytes the sender of this segment is willing to receive."
+            ],
+            [
+              "Options",
+              "MSS 1460, SACK permitted, window scale 7"
+            ],
+            [
+              "Payload",
+              "0 bytes"
+            ]
+          ]
+        }
+      ],
+      "status": {
+        "client": "SYN-SENT"
+      },
+      "state": [
+        {
+          "title": "Client connection record (TCB)",
+          "head": [
+            "Variable",
+            "Value",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "State",
+              "SYN-SENT",
+              "Where this end is in the handshake"
+            ],
+            [
+              "ISS",
+              "1000",
+              "Initial send sequence number"
+            ],
+            [
+              "SND.UNA",
+              "1000",
+              "Oldest byte sent but not yet acknowledged"
+            ],
+            [
+              "SND.NXT",
+              "1001",
+              "Next sequence number to send"
+            ],
+            [
+              "IRS",
+              "unknown",
+              "Initial sequence number received from the peer"
+            ],
+            [
+              "RCV.NXT",
+              "unknown",
+              "Next byte expected from the peer"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "The SYN flag takes up one sequence number even though it carries no data. That is why SND.NXT is now 1001."
+      ]
+    },
+    {
+      "from": "client",
+      "kind": "local",
+      "label": "timer expires after 1 s",
+      "title": "The retransmission timer runs out",
+      "desc": "When the client sent the SYN it started a retransmission timer. No round-trip time has been measured yet, so the timeout starts at 1 second. It expires with no reply, so the client sends the same SYN again and doubles the timeout.",
+      "state": [
+        {
+          "title": "Client retransmission timer",
+          "head": [
+            "Attempt",
+            "Sent at",
+            "Timeout (RTO)",
+            "Result"
+          ],
+          "rows": [
+            [
+              "1",
+              "0.0 s",
+              "1 s",
+              "expired, no reply"
+            ],
+            [
+              "2",
+              "1.0 s",
+              "2 s",
+              "running"
+            ]
+          ],
+          "mark": [
+            1
+          ]
+        }
+      ],
+      "notes": [
+        "The 1 second starting value and the doubling come from RFC 6298.",
+        "A client does not retry for ever. Linux, for example, retransmits a SYN 6 times by default (tcp_syn_retries) before reporting a timeout to the program."
+      ]
+    },
+    {
+      "from": "client",
+      "to": "server",
+      "kind": "syn",
+      "label": "SYN seq=1000 (again)",
+      "title": "The retransmitted SYN arrives",
+      "desc": "The second copy is identical to the first: same ports, same sequence number. The SYN also carries options that can only be agreed during the handshake, such as the largest segment the client can receive (MSS).",
+      "fields": [
+        {
+          "group": "IPv4 header",
+          "color": "blue",
+          "rows": [
+            [
+              "Source address",
+              "192.0.2.10"
+            ],
+            [
+              "Destination address",
+              "198.51.100.20"
+            ],
+            [
+              "Protocol",
+              "6 (TCP)"
+            ]
+          ]
+        },
+        {
+          "group": "TCP header",
+          "color": "green",
+          "rows": [
+            [
+              "Source port",
+              "51514"
+            ],
+            [
+              "Destination port",
+              "443"
+            ],
+            [
+              "Sequence number",
+              "1000",
+              "Number of the first byte this segment occupies in the sender's stream."
+            ],
+            [
+              "Acknowledgment number",
+              "0 (ACK flag not set)"
+            ],
+            [
+              "Flags",
+              "SYN"
+            ],
+            [
+              "Window",
+              "65535",
+              "How many bytes the sender of this segment is willing to receive."
+            ],
+            [
+              "Options",
+              "MSS 1460, SACK permitted, window scale 7"
+            ],
+            [
+              "Payload",
+              "0 bytes"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "MSS 1460 = a 1500-byte Ethernet payload minus 20 bytes of IPv4 header and 20 bytes of TCP header."
+      ]
+    },
+    {
+      "from": "server",
+      "kind": "local",
+      "label": "record 1000, ISS = 5000",
+      "title": "The server records the client's number and picks its own",
+      "desc": "The SYN matches a listening port. The server creates its own connection record, stores the client's initial sequence number (IRS = 1000), expects byte 1001 next, and picks its own ISS, 5000 in this example.",
+      "status": {
+        "server": "SYN-RECEIVED"
+      },
+      "state": [
+        {
+          "title": "Server connection record (TCB)",
+          "head": [
+            "Variable",
+            "Value",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "State",
+              "SYN-RECEIVED",
+              "Where this end is in the handshake"
+            ],
+            [
+              "ISS",
+              "5000",
+              "Initial send sequence number"
+            ],
+            [
+              "SND.UNA",
+              "5000",
+              "Oldest byte sent but not yet acknowledged"
+            ],
+            [
+              "SND.NXT",
+              "5000",
+              "Next sequence number to send"
+            ],
+            [
+              "IRS",
+              "1000",
+              "Initial sequence number received from the peer"
+            ],
+            [
+              "RCV.NXT",
+              "1001",
+              "Next byte expected from the peer"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "If nothing were listening on port 443, the server would answer with a RST segment and the client would report \"connection refused\"."
+      ]
+    },
+    {
+      "from": "server",
+      "to": "client",
+      "kind": "syn",
+      "label": "SYN, ACK seq=5000 ack=1001",
+      "title": "The server answers with SYN, ACK",
+      "desc": "One segment does two jobs. The ACK flag with acknowledgment 1001 says \"I received your SYN and expect byte 1001 next\". The SYN flag with sequence 5000 says \"my own numbering starts here\".",
+      "fields": [
+        {
+          "group": "IPv4 header",
+          "color": "blue",
+          "rows": [
+            [
+              "Source address",
+              "198.51.100.20"
+            ],
+            [
+              "Destination address",
+              "192.0.2.10"
+            ],
+            [
+              "Protocol",
+              "6 (TCP)"
+            ]
+          ]
+        },
+        {
+          "group": "TCP header",
+          "color": "green",
+          "rows": [
+            [
+              "Source port",
+              "443"
+            ],
+            [
+              "Destination port",
+              "51514"
+            ],
+            [
+              "Sequence number",
+              "5000",
+              "Number of the first byte this segment occupies in the sender's stream."
+            ],
+            [
+              "Acknowledgment number",
+              "1001",
+              "The next byte this side expects from the other."
+            ],
+            [
+              "Flags",
+              "SYN, ACK"
+            ],
+            [
+              "Window",
+              "65535",
+              "How many bytes the sender of this segment is willing to receive."
+            ],
+            [
+              "Options",
+              "MSS 1460, SACK permitted, window scale 7"
+            ],
+            [
+              "Payload",
+              "0 bytes"
+            ]
+          ],
+          "changed": [
+            "Sequence number",
+            "Acknowledgment number",
+            "Flags"
+          ]
+        }
+      ],
+      "state": [
+        {
+          "title": "Server connection record (TCB)",
+          "head": [
+            "Variable",
+            "Value",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "State",
+              "SYN-RECEIVED",
+              "Where this end is in the handshake"
+            ],
+            [
+              "ISS",
+              "5000",
+              "Initial send sequence number"
+            ],
+            [
+              "SND.UNA",
+              "5000",
+              "Oldest byte sent but not yet acknowledged"
+            ],
+            [
+              "SND.NXT",
+              "5001",
+              "Next sequence number to send"
+            ],
+            [
+              "IRS",
+              "1000",
+              "Initial sequence number received from the peer"
+            ],
+            [
+              "RCV.NXT",
+              "1001",
+              "Next byte expected from the peer"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "from": "client",
+      "kind": "local",
+      "label": "is ack 1001 acceptable?",
+      "title": "The client checks the acknowledgment",
+      "desc": "The client accepts the segment only if it acknowledges something the client really sent: SND.UNA < ack <= SND.NXT, here 1000 < 1001 <= 1001. It passes, so the client records the server's number (IRS = 5000) and moves to ESTABLISHED.",
+      "status": {
+        "client": "ESTABLISHED"
+      },
+      "state": [
+        {
+          "title": "Client connection record (TCB)",
+          "head": [
+            "Variable",
+            "Value",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "State",
+              "ESTABLISHED",
+              "Where this end is in the handshake"
+            ],
+            [
+              "ISS",
+              "1000",
+              "Initial send sequence number"
+            ],
+            [
+              "SND.UNA",
+              "1001",
+              "Oldest byte sent but not yet acknowledged"
+            ],
+            [
+              "SND.NXT",
+              "1001",
+              "Next sequence number to send"
+            ],
+            [
+              "IRS",
+              "5000",
+              "Initial sequence number received from the peer"
+            ],
+            [
+              "RCV.NXT",
+              "5001",
+              "Next byte expected from the peer"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "A SYN, ACK with a wrong acknowledgment number (an old duplicate, or a forgery) is answered with a RST instead."
+      ]
+    },
+    {
+      "from": "client",
+      "to": "server",
+      "kind": "ack",
+      "label": "ACK seq=1001 ack=5001",
+      "title": "The client acknowledges the server's SYN",
+      "desc": "The third segment acknowledges the server's SYN: acknowledgment 5001 means \"I expect byte 5001 next\". It carries no SYN flag and no data, so it does not use up a sequence number.",
+      "fields": [
+        {
+          "group": "IPv4 header",
+          "color": "blue",
+          "rows": [
+            [
+              "Source address",
+              "192.0.2.10"
+            ],
+            [
+              "Destination address",
+              "198.51.100.20"
+            ],
+            [
+              "Protocol",
+              "6 (TCP)"
+            ]
+          ]
+        },
+        {
+          "group": "TCP header",
+          "color": "green",
+          "rows": [
+            [
+              "Source port",
+              "51514"
+            ],
+            [
+              "Destination port",
+              "443"
+            ],
+            [
+              "Sequence number",
+              "1001",
+              "Number of the first byte this segment occupies in the sender's stream."
+            ],
+            [
+              "Acknowledgment number",
+              "5001",
+              "The next byte this side expects from the other."
+            ],
+            [
+              "Flags",
+              "ACK"
+            ],
+            [
+              "Window",
+              "65535",
+              "How many bytes the sender of this segment is willing to receive."
+            ],
+            [
+              "Options",
+              "none"
+            ],
+            [
+              "Payload",
+              "0 bytes"
+            ]
+          ],
+          "changed": [
+            "Sequence number",
+            "Acknowledgment number",
+            "Flags",
+            "Options"
+          ]
+        }
+      ],
+      "notes": [
+        "From the client's point of view the connection is already open. It may send data straight after this segment, or even inside it."
+      ]
+    },
+    {
+      "from": "server",
+      "kind": "local",
+      "label": "is ack 5001 acceptable?",
+      "title": "The server checks the acknowledgment and is connected",
+      "desc": "The server runs the same test on its side: 5000 < 5001 <= 5001. It passes, so the server moves to ESTABLISHED. Both ends now know both starting numbers, and each has proof the other received its own.",
+      "status": {
+        "server": "ESTABLISHED"
+      },
+      "state": [
+        {
+          "title": "Server connection record (TCB)",
+          "head": [
+            "Variable",
+            "Value",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "State",
+              "ESTABLISHED",
+              "Where this end is in the handshake"
+            ],
+            [
+              "ISS",
+              "5000",
+              "Initial send sequence number"
+            ],
+            [
+              "SND.UNA",
+              "5001",
+              "Oldest byte sent but not yet acknowledged"
+            ],
+            [
+              "SND.NXT",
+              "5001",
+              "Next sequence number to send"
+            ],
+            [
+              "IRS",
+              "1000",
+              "Initial sequence number received from the peer"
+            ],
+            [
+              "RCV.NXT",
+              "1001",
+              "Next byte expected from the peer"
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "This is why the handshake needs three segments: each side must send its number and see it acknowledged, and the middle segment combines one acknowledgment with one number."
+      ]
+    },
+    {
+      "from": "client",
+      "to": "server",
+      "kind": "data",
+      "label": "PSH, ACK seq=1001 len=517",
+      "title": "First data: the sequence numbers start counting bytes",
+      "desc": "The client sends 517 bytes (here a TLS ClientHello, since this is port 443). The segment starts at sequence 1001, the number after the SYN. The server will acknowledge 1001 + 517 = 1518.",
+      "fields": [
+        {
+          "group": "IPv4 header",
+          "color": "blue",
+          "rows": [
+            [
+              "Source address",
+              "192.0.2.10"
+            ],
+            [
+              "Destination address",
+              "198.51.100.20"
+            ],
+            [
+              "Protocol",
+              "6 (TCP)"
+            ]
+          ]
+        },
+        {
+          "group": "TCP header",
+          "color": "green",
+          "rows": [
+            [
+              "Source port",
+              "51514"
+            ],
+            [
+              "Destination port",
+              "443"
+            ],
+            [
+              "Sequence number",
+              "1001",
+              "Number of the first byte this segment occupies in the sender's stream."
+            ],
+            [
+              "Acknowledgment number",
+              "5001",
+              "The next byte this side expects from the other."
+            ],
+            [
+              "Flags",
+              "PSH, ACK"
+            ],
+            [
+              "Window",
+              "65535",
+              "How many bytes the sender of this segment is willing to receive."
+            ],
+            [
+              "Options",
+              "none"
+            ],
+            [
+              "Payload",
+              "517 bytes"
+            ]
+          ],
+          "changed": [
+            "Flags",
+            "Payload"
+          ]
+        }
+      ],
+      "state": [
+        {
+          "title": "Client connection record (TCB)",
+          "head": [
+            "Variable",
+            "Value",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "State",
+              "ESTABLISHED",
+              "Where this end is in the handshake"
+            ],
+            [
+              "ISS",
+              "1000",
+              "Initial send sequence number"
+            ],
+            [
+              "SND.UNA",
+              "1001",
+              "Oldest byte sent but not yet acknowledged"
+            ],
+            [
+              "SND.NXT",
+              "1518",
+              "Next sequence number to send"
+            ],
+            [
+              "IRS",
+              "5000",
+              "Initial sequence number received from the peer"
+            ],
+            [
+              "RCV.NXT",
+              "5001",
+              "Next byte expected from the peer"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "simplifications": [
+    "Sequence numbers start at 1000 and 5000 for readability. Real initial sequence numbers are 32-bit values chosen to be hard to guess.",
+    "Only one loss is shown. Real stacks keep retransmitting with a growing timeout and give up after a limit set by the operating system.",
+    "The IP header is reduced to three fields, and link-layer framing, routing hops and NAT are left out.",
+    "Options are listed but not explained in depth: window scaling, selective acknowledgment and timestamps each have their own rules.",
+    "SYN flood defences (SYN cookies, backlog limits), simultaneous open and TCP Fast Open are not covered.",
+    "Connection teardown (FIN) is not part of this explainer."
+  ],
+  "sources": [
+    {
+      "title": "RFC 9293: Transmission Control Protocol (TCP), sections 3.4, 3.5 and 3.10.7",
+      "url": "https://www.rfc-editor.org/rfc/rfc9293",
+      "note": "Sequence numbers, the three-way handshake, the state machine and the acceptable-ACK test."
+    },
+    {
+      "title": "RFC 6298: Computing TCP's Retransmission Timer",
+      "url": "https://www.rfc-editor.org/rfc/rfc6298",
+      "note": "Initial timeout of 1 second and doubling on each expiry."
+    },
+    {
+      "title": "RFC 6528: Defending against Sequence Number Attacks",
+      "url": "https://www.rfc-editor.org/rfc/rfc6528",
+      "note": "How initial sequence numbers are generated."
+    },
+    {
+      "title": "RFC 7323: TCP Extensions for High Performance",
+      "url": "https://www.rfc-editor.org/rfc/rfc7323",
+      "note": "Window scale option, sent only in SYN segments."
+    },
+    {
+      "title": "Linux kernel documentation: ip-sysctl, tcp_syn_retries",
+      "url": "https://docs.kernel.org/networking/ip-sysctl.html",
+      "note": "Default of 6 SYN retransmissions."
+    }
+  ]
+}

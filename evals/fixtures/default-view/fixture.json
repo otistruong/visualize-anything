@@ -1,0 +1,5 @@
+{
+  "case": "default-view",
+  "expect": "pass",
+  "note": "Reference output written by hand: the TCP example with \"view\": \"2d\" added and the HTML rebuilt, to test the checker. It is not a recording of an agent."
+}

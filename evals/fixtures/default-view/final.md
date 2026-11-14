@@ -1,0 +1,1 @@
+I added `"view": "2d"` to `tcp-handshake.json`, validated it and rebuilt `tcp-handshake.html`. The explainer now opens in the flat 2D plan seen from above; the 2D / 3D buttons (or the `V` key) still switch to the 3D view, and the browser remembers the reader's last choice for this file. Nothing else in the spec changed: the same 11 steps, simplifications and sources.
