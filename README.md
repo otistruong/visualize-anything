@@ -4,7 +4,7 @@
 
 An agent skill that turns any process, protocol, architecture or algorithm into an interactive, step-by-step visual explainer.
 
-You ask your coding agent something like "visualize how the TCP handshake works". The agent researches the subject, writes it down as data (who takes part, and what happens one step at a time), and builds a single HTML file you can open in any browser: a scene, a token that moves between the parts, a sequence timeline, and an inspector that shows exactly what is in play at each step and what changed.
+You ask your coding agent something like "visualize how the TCP handshake works". The agent researches the subject, writes it down as data (who takes part, and what happens one step at a time), and builds a single HTML file you can open in any browser: a scene that can be seen in 3D or as a flat 2D plan, a token that moves between the parts, a sequence timeline, and an inspector that shows exactly what is in play at each step and what changed.
 
 ![The TCP handshake example. The first SYN has been lost: the token stopped half way and is crossed out, and the inspector says why.](docs/screenshots/tcp-handshake-lost-syn.png)
 
@@ -20,6 +20,16 @@ The agent does not write a renderer, an animation loop or any CSS. Those ship wi
 
 This method comes from [Network Graph](https://network-graph-sigma.vercel.app), where fourteen networking lessons (NAT, ARP, DHCP, DNS, TCP, load balancers and more) are written as data and one player renders them all. Network Graph is the reference project and the worked example of the method at full size. This skill is the method on its own, with a smaller player that needs no build step.
 
+## Two views of one scene
+
+Every explainer can be seen two ways, and the reader switches between them with the 2D / 3D buttons or the `V` key. The 3D view shows the parts as solids standing on the ground. The 2D view is the same scene seen straight from above: a flat plan with a tile and an icon for each part, zones as rectangles, and labels placed where they do not cover each other. The turn from one to the other is animated (instantly, if the system asks for reduced motion), and it can be reversed half way.
+
+| 3D | 2D |
+| --- | --- |
+| ![The OAuth example in the 3D view: the API call travels from the client app to the resource server, drawn as a drum inside the provider's zone.](docs/screenshots/views-oauth-3d.png) | ![The same step in the 2D plan: flat tiles with icons, the provider's zone as a rectangle, and the call running along its link.](docs/screenshots/views-oauth-2d.png) |
+
+A spec chooses the view it opens in (`"view": "2d"` or `"3d"`, 3D when left out). The plan suits topology and containment, the 3D view suits layers and things where height means something; [`method.md`](skills/visualize-anything/references/method.md) says more. Once a reader has switched, the browser remembers their choice for that explainer.
+
 ## Examples
 
 Three subjects, chosen to be different from each other. Each link is the built file; download it and open it, or clone the repository and open it from `examples/`.
@@ -27,35 +37,35 @@ Three subjects, chosen to be different from each other. Each link is the built f
 | Example | Subject | Spec | Built |
 | --- | --- | --- | --- |
 | TCP three-way handshake | A network protocol. Two hosts, a lost SYN and its retransmission, connection state on both sides. | [json](skills/visualize-anything/examples/tcp-handshake.json) | [html](examples/tcp-handshake.html) |
-| OAuth 2.0 authorization code flow with PKCE | A security protocol with five parties, HTTP payloads, and a replayed code that is refused. | [json](skills/visualize-anything/examples/oauth-authorization-code.json) | [html](examples/oauth-authorization-code.html) |
+| OAuth 2.0 authorization code flow with PKCE | A security protocol with five parties, HTTP payloads, and a replayed code that is refused. Opens in the 2D plan. | [json](skills/visualize-anything/examples/oauth-authorization-code.json) | [html](examples/oauth-authorization-code.html) |
 | Hash map collision | A data structure. Two keys land in one bucket; a lookup for a missing key fails. | [json](skills/visualize-anything/examples/hash-map-collision.json) | [html](examples/hash-map-collision.html) |
 
 | | |
 | --- | --- |
-| ![OAuth example, dark theme: the token request with its form body and raw HTTP payload.](docs/screenshots/oauth-token-request-dark.png) | ![OAuth example: a replayed authorization code is refused. The server is marked red and the checks that failed are highlighted.](docs/screenshots/oauth-refused-dark.png) |
+| ![OAuth example in the 2D plan, dark theme: the token request with its form body and raw HTTP payload.](docs/screenshots/oauth-token-request-dark.png) | ![OAuth example in 3D: a replayed authorization code is refused. The server is marked red and the checks that failed are highlighted.](docs/screenshots/oauth-refused-dark.png) |
 | ![Hash map example: a second key is chained in bucket 0, and the changed table cell is highlighted.](docs/screenshots/hash-map-collision.png) | ![TCP example with the SYN, ACK segment in flight between server and client.](docs/screenshots/tcp-handshake-in-flight.png) |
 
 On a phone the scene scrolls and follows the token:
 
 <p>
 <img src="docs/screenshots/phone-tcp-light.png" alt="TCP example at 390 px wide, light theme" width="260">
-<img src="docs/screenshots/phone-oauth-dark.png" alt="OAuth example at 390 px wide, dark theme" width="260">
+<img src="docs/screenshots/phone-oauth-dark.png" alt="OAuth example in the 2D plan at 390 px wide, dark theme" width="260">
 </p>
 
 The screenshots were taken from the built examples in headless Chrome.
 
 ## What an explainer contains
 
-- A 2.5D scene of actors (drawn as simple solids), zones and links.
-- One token per step. It travels between two actors, or pulses above one actor for a decision or lookup that happens inside it.
+- A scene of actors, zones and links in two views: 3D, with actors drawn as simple solids, and a flat 2D plan seen from above, with actors drawn as tiles with an icon. The spec picks the view it opens in; the reader can switch at any time.
+- One token per step. It travels between two actors, or pulses on one actor for a decision or lookup that happens inside it.
 - Failure steps drawn differently: the token stops part-way, turns red and is crossed out, and the reason is shown.
 - A status chip under each actor for state that persists (a connection state, the contents of a slot).
 - A sequence timeline of every step. Click a row to jump to it.
 - An inspector: title, description, field tables with rewritten fields highlighted, a raw payload, state tables in which cells that changed since the table was last shown are highlighted, and notes.
-- Play, pause, step, restart, four speeds. Keyboard: `Space` play or pause, `←` `→` step, `Home` `End` first or last, `,` `.` slower or faster, `T` theme.
+- Play, pause, step, restart, four speeds, 2D or 3D. Keyboard: `Space` play or pause, `←` `→` step, `Home` `End` first or last, `,` `.` slower or faster, `V` 2D or 3D, `T` theme.
 - Light and dark themes that follow the system setting. A layout that works down to 390 px wide.
 - A closing panel that lists what the model leaves out and the sources it was built from.
-- One HTML file of about 50 kB. No network requests, no dependencies, no server.
+- One HTML file of about 70 kB. No network requests, no dependencies, no server.
 
 ## Install
 
@@ -155,7 +165,7 @@ skills/visualize-anything/     the skill: the only source of truth
   references/spec.md           the spec format, field by field
   references/method.md         how to model a subject so that it teaches
   assets/player.html           the player: one file, no dependencies
-  scripts/validate.mjs         checks a spec, with messages that say how to fix it
+  scripts/validate.mjs         checks a spec, with messages that say how to fix it (both views)
   scripts/build.mjs            embeds a spec into the player
   examples/*.json              three complete specs
 examples/*.html                the three examples, built
@@ -215,10 +225,10 @@ Checked against each product's documentation on 2026-11-11. Products change; if 
 
 - The explainer is a teaching model, not an emulator. Nothing is computed: every value on screen was written into the spec.
 - One linear sequence per explainer. No branching by viewer choice, no loops, no parallel tokens. A "what if" case is modelled as extra steps at the end.
-- The scene is 2.5D with eight fixed shapes. There are no custom icons and no free camera.
+- The scene has two fixed views (3D and a flat 2D plan) and eight fixed shapes. There are no custom icons, no free camera, and no pan or zoom: the scene is fitted to its box, and on a narrow screen it scrolls and follows the token.
 - About nine actors and twenty-six steps is the practical ceiling. Larger subjects should be split.
 - Accuracy depends on the agent and on the sources it could reach. The validator checks structure, layout and the presence of sources and a failure case. It cannot check facts.
-- Layout is chosen by the agent using coordinates. The validator catches overlapping actors and colliding labels, but a scene can still be legible and ugly.
+- Layout is chosen by the agent using coordinates. The validator catches overlapping actors and colliding labels in both views, but a scene can still be legible and ugly.
 - The player needs a browser from about 2023 or later (it uses the CSS `color-mix()` function).
 - Text is English, left to right. The player's own labels are not translatable yet.
 
