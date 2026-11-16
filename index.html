@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visualize Anything: examples</title>
+<meta name="description" content="An agent skill that turns any process, protocol, architecture or algorithm into an interactive, step-by-step visual explainer in one HTML file. Three built examples.">
+<style>
+/* The player's palette (skills/visualize-anything/assets/player.html), so the page and the explainers match. */
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --fg: #17202b; --muted: #5b6776; --line: #d6dbe2;
+  --accent: #2563eb; --accent-bg: #e8effd;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f141b; --panel: #161d27; --fg: #e6ebf2; --muted: #93a0b0; --line: #2a3442;
+    --accent: #7aa7ff; --accent-bg: #1c2a44;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 14px 18px 10px;
+}
+h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+header p { flex: 1 1 360px; margin: 0; color: var(--muted); }
+header nav { display: flex; gap: 14px; font-size: 13px; white-space: nowrap; }
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 18px 10px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.tab {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] { border-color: var(--accent); background: var(--accent-bg); color: var(--fg); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bar .own { margin-left: auto; flex: none; font-size: 13px; }
+iframe { display: block; width: 100%; height: 100%; border: 0; background: var(--bg); }
+@media (max-width: 560px) {
+  header { padding: 12px 14px 8px; }
+  .bar { padding: 0 14px 8px; }
+  .bar .own { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Visualize Anything</h1>
+  <p>An agent skill that turns a process, protocol, architecture or algorithm into an interactive, step-by-step explainer in one HTML file. These three were built with it. Click into one, then step with the arrow keys; <kbd>V</kbd> switches between the 3D view and the 2D plan.</p>
+  <nav>
+    <a href="https://github.com/otistruong/visualize-anything" target="_blank" rel="noopener">Get the skill</a>
+    <a href="https://github.com/otistruong/visualize-anything/blob/main/skills/visualize-anything/references/method.md" target="_blank" rel="noopener">The method</a>
+  </nav>
+</header>
+<div class="bar" role="tablist" aria-label="Examples">
+  <button class="tab" role="tab" id="tab-tcp-handshake" data-example="tcp-handshake" aria-controls="example">TCP three-way handshake</button>
+  <button class="tab" role="tab" id="tab-oauth-authorization-code" data-example="oauth-authorization-code" aria-controls="example">OAuth 2.0 with PKCE</button>
+  <button class="tab" role="tab" id="tab-hash-map-collision" data-example="hash-map-collision" aria-controls="example">Hash map collision</button>
+  <a class="own" id="own" href="examples/tcp-handshake.html" target="_blank" rel="noopener">Open on its own</a>
+</div>
+<iframe id="example" role="tabpanel" title="Example explainer" src="examples/tcp-handshake.html"></iframe>
+<script>
+// Each tab shows one built explainer. The address keeps the choice (#oauth-authorization-code), so a link opens it.
+const tabs = [...document.querySelectorAll('.tab')];
+const frame = document.getElementById('example');
+const own = document.getElementById('own');
+function show(name, focus) {
+  const tab = tabs.find((t) => t.dataset.example === name) || tabs[0];
+  for (const t of tabs) {
+    const on = t === tab;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+  }
+  const src = 'examples/' + tab.dataset.example + '.html';
+  if (frame.getAttribute('src') !== src) frame.setAttribute('src', src);
+  frame.setAttribute('aria-labelledby', tab.id);
+  frame.title = tab.textContent + ' explainer';
+  own.href = src;
+  if (focus) tab.focus();
+}
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => { history.replaceState(null, '', '#' + tab.dataset.example); show(tab.dataset.example); });
+  tab.addEventListener('keydown', (e) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = tabs[(i + step + tabs.length) % tabs.length];
+    history.replaceState(null, '', '#' + next.dataset.example);
+    show(next.dataset.example, true);
+  });
+});
+addEventListener('hashchange', () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+</script>
+</body>
+</html>
