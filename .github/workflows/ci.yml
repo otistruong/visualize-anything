@@ -39,8 +39,8 @@ jobs:
       - name: Offline evals
         run: node evals/run.mjs
 
-      - name: The player and built examples make no network requests
+      - name: The player, built examples and examples page make no network requests
         run: |
-          if grep -nE '<script[^>]+src=|<link[^>]+href=|@import|url\(\s*.?https?:' skills/visualize-anything/assets/player.html examples/*.html; then
+          if grep -nE '<script[^>]+src=|<link[^>]+href=|@import|url\(\s*.?https?:' skills/visualize-anything/assets/player.html examples/*.html site/index.html; then
             echo "Found an external resource."; exit 1
           fi

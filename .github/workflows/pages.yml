@@ -1,0 +1,39 @@
+name: Pages
+
+# Publishes the examples page to GitHub Pages: site/index.html and the built examples/*.html, copied to the
+# gh-pages branch, which Pages serves at https://otistruong.github.io/visualize-anything/.
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'examples/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Put the page and the examples together
+        run: |
+          mkdir -p _site/examples
+          cp site/index.html _site/
+          cp examples/*.html _site/examples/
+          touch _site/.nojekyll
+
+      - name: Push them to the gh-pages branch
+        run: |
+          cd _site
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publish the examples page from ${GITHUB_SHA::7}"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages

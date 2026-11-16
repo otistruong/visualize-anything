@@ -4,6 +4,12 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 Version numbers cover three things that can break separately: the spec format (`version` in a spec), the player, and the skill's instructions. A change that makes existing specs invalid is a major version.
 
+## [Unreleased]
+
+### Added
+
+- An examples page on GitHub Pages, https://otistruong.github.io/visualize-anything/, showing the three built examples one at a time. Its source is `site/index.html`; `.github/workflows/pages.yml` publishes it with the examples to the `gh-pages` branch on every push to `main` that changes them.
+
 ## [0.2.0] - 2026-11-15
 
 A backward-compatible feature release: every spec that was valid stays valid and opens looking as it did.

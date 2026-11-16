@@ -32,7 +32,7 @@ A spec chooses the view it opens in (`"view": "2d"` or `"3d"`, 3D when left out)
 
 ## Examples
 
-Three subjects, chosen to be different from each other. Each link is the built file; download it and open it, or clone the repository and open it from `examples/`.
+Three subjects, chosen to be different from each other. Try them in the browser at [otistruong.github.io/visualize-anything](https://otistruong.github.io/visualize-anything/), or use the links below: each is the built file; download it and open it, or clone the repository and open it from `examples/`.
 
 | Example | Subject | Spec | Built |
 | --- | --- | --- | --- |
